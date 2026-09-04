@@ -2,6 +2,8 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QDateTime>
+#include <QFile>
+#include <QFileDialog>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -20,10 +22,18 @@
 #include <QTableWidget>
 #include <QTabWidget>
 #include <QTcpSocket>
+#include <QTextStream>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <QWidget>
 
 #include <functional>
+
+#include "ui_admin_client.h"
+
+#ifdef HAS_QT_WEBENGINE
+#include <QWebEngineView>
+#endif
 
 namespace {
 
@@ -60,6 +70,17 @@ void setItem(QTableWidget *table, int row, int column, const QString &text, int 
     table->setItem(row, column, item);
 }
 
+QString javascriptJson(const QJsonDocument &document)
+{
+    QString json = QString::fromUtf8(document.toJson(QJsonDocument::Compact));
+    json.replace(QStringLiteral("<"), QStringLiteral("\\u003c"));
+    json.replace(QStringLiteral(">"), QStringLiteral("\\u003e"));
+    json.replace(QStringLiteral("&"), QStringLiteral("\\u0026"));
+    json.replace(QChar(0x2028), QStringLiteral("\\u2028"));
+    json.replace(QChar(0x2029), QStringLiteral("\\u2029"));
+    return json;
+}
+
 } // namespace
 
 class AdminWindow final : public QWidget {
@@ -69,239 +90,115 @@ public:
     explicit AdminWindow(QWidget *parent = nullptr)
         : QWidget(parent)
     {
-        setWindowTitle(QStringLiteral("Charging Admin Client"));
-        resize(1240, 780);
         buildUi();
         connectSignals();
+    }
+
+    ~AdminWindow() override
+    {
+        delete ui;
     }
 
 private:
     void buildUi()
     {
-        hostEdit_ = new QLineEdit(QStringLiteral("127.0.0.1"));
-        portSpin_ = new QSpinBox;
-        portSpin_->setRange(1, 65535);
-        portSpin_->setValue(45454);
-        usernameEdit_ = new QLineEdit(QStringLiteral("admin"));
-        passwordEdit_ = new QLineEdit(QStringLiteral("admin123"));
-        passwordEdit_->setEchoMode(QLineEdit::Password);
-        loginButton_ = new QPushButton(QStringLiteral("Login"));
-        adminLabel_ = new QLabel(QStringLiteral("Not logged in"));
+        ui = new Ui::AdminWindow;
+        ui->setupUi(this);
 
-        auto *loginBox = new QGroupBox(QStringLiteral("Admin Login"));
-        auto *loginLayout = new QFormLayout(loginBox);
-        loginLayout->addRow(QStringLiteral("Host"), hostEdit_);
-        loginLayout->addRow(QStringLiteral("Port"), portSpin_);
-        loginLayout->addRow(QStringLiteral("Username"), usernameEdit_);
-        loginLayout->addRow(QStringLiteral("Password"), passwordEdit_);
-        loginLayout->addRow(loginButton_);
-        loginLayout->addRow(QStringLiteral("Current Admin"), adminLabel_);
+        setWindowTitle(QStringLiteral("Charging Admin Client"));
+        resize(1240, 780);
 
-        tabs_ = new QTabWidget;
-        tabs_->addTab(buildUsersTab(), QStringLiteral("Users"));
-        tabs_->addTab(buildStationsTab(), QStringLiteral("Stations"));
-        tabs_->addTab(buildChargersTab(), QStringLiteral("Chargers"));
-        tabs_->addTab(buildOrdersTab(), QStringLiteral("Orders"));
+        hostEdit_ = ui->hostEdit;
+        portSpin_ = ui->portSpin;
+        usernameEdit_ = ui->usernameEdit;
+        passwordEdit_ = ui->passwordEdit;
+        loginButton_ = ui->loginButton;
+        adminLabel_ = ui->adminLabel;
+        tabs_ = ui->tabs;
+        logEdit_ = ui->logEdit;
+        dashboardWebContainer_ = ui->dashboardWebContainer;
+        dashboardHtmlEdit_ = ui->dashboardHtmlEdit;
+        dashboardStatusLabel_ = ui->dashboardStatusLabel;
+        refreshDashboardButton_ = ui->refreshDashboardButton;
+        exportDashboardButton_ = ui->exportDashboardButton;
 
-        logEdit_ = new QPlainTextEdit;
+        userKeywordEdit_ = ui->userKeywordEdit;
+        userStatusCombo_ = ui->userStatusCombo;
+        refreshUsersButton_ = ui->refreshUsersButton;
+        freezeUserButton_ = ui->freezeUserButton;
+        activateUserButton_ = ui->activateUserButton;
+        userTable_ = ui->userTable;
+
+        stationNameEdit_ = ui->stationNameEdit;
+        stationAddressEdit_ = ui->stationAddressEdit;
+        stationLatSpin_ = ui->stationLatSpin;
+        stationLngSpin_ = ui->stationLngSpin;
+        stationStatusCombo_ = ui->stationStatusCombo;
+        refreshStationsButton_ = ui->refreshStationsButton;
+        createStationButton_ = ui->createStationButton;
+        updateStationButton_ = ui->updateStationButton;
+        openStationButton_ = ui->openStationButton;
+        closeStationButton_ = ui->closeStationButton;
+        stationTable_ = ui->stationTable;
+
+        chargerStationIdSpin_ = ui->chargerStationIdSpin;
+        chargerCodeEdit_ = ui->chargerCodeEdit;
+        chargerTypeCombo_ = ui->chargerTypeCombo;
+        chargerPowerSpin_ = ui->chargerPowerSpin;
+        chargerStatusCombo_ = ui->chargerStatusCombo;
+        refreshChargersButton_ = ui->refreshChargersButton;
+        createChargerButton_ = ui->createChargerButton;
+        updateChargerButton_ = ui->updateChargerButton;
+        setChargerStatusButton_ = ui->setChargerStatusButton;
+        chargerTable_ = ui->chargerTable;
+        telemetryTable_ = ui->telemetryTable;
+
+        orderUserIdSpin_ = ui->orderUserIdSpin;
+        orderStatusCombo_ = ui->orderStatusCombo;
+        refreshOrdersButton_ = ui->refreshOrdersButton;
+        stopOrderButton_ = ui->stopOrderButton;
+        settleOrderButton_ = ui->settleOrderButton;
+        orderEnergySpin_ = ui->orderEnergySpin;
+        orderTable_ = ui->orderTable;
+
+        overviewStationIdSpin_ = ui->overviewStationIdSpin;
+        overviewHorizonCombo_ = ui->overviewHorizonCombo;
+        refreshOverviewButton_ = ui->refreshOverviewButton;
+        generateForecastButton_ = ui->generateForecastButton;
+        refreshForecastsButton_ = ui->refreshForecastsButton;
+        summaryOrderCountLabel_ = ui->summaryOrderCountLabel;
+        summaryEnergyLabel_ = ui->summaryEnergyLabel;
+        summaryRevenueLabel_ = ui->summaryRevenueLabel;
+        summaryAverageEnergyLabel_ = ui->summaryAverageEnergyLabel;
+        summaryLoadLabel_ = ui->summaryLoadLabel;
+        summaryUsersLabel_ = ui->summaryUsersLabel;
+        summaryStationsLabel_ = ui->summaryStationsLabel;
+        summaryChargersLabel_ = ui->summaryChargersLabel;
+        forecastTable_ = ui->forecastTable;
+        orderStatusTable_ = ui->orderStatusTable;
+        chargerStatusOverviewTable_ = ui->chargerStatusOverviewTable;
+
+        setupTable(userTable_);
+        setupTable(stationTable_);
+        setupTable(chargerTable_);
+        setupTable(telemetryTable_);
+        setupTable(orderTable_);
+        setupTable(forecastTable_);
+        setupTable(orderStatusTable_);
+        setupTable(chargerStatusOverviewTable_);
         logEdit_->setReadOnly(true);
         logEdit_->setMaximumBlockCount(400);
-
-        auto *root = new QVBoxLayout(this);
-        root->addWidget(loginBox);
-        root->addWidget(tabs_, 1);
-        root->addWidget(logEdit_);
-    }
-
-    QWidget *buildUsersTab()
-    {
-        userKeywordEdit_ = new QLineEdit;
-        userStatusCombo_ = new QComboBox;
-        userStatusCombo_->addItems({QStringLiteral("all"), QStringLiteral("active"), QStringLiteral("frozen")});
-        refreshUsersButton_ = new QPushButton(QStringLiteral("Refresh"));
-        freezeUserButton_ = new QPushButton(QStringLiteral("Freeze"));
-        activateUserButton_ = new QPushButton(QStringLiteral("Activate"));
-
-        userTable_ = new QTableWidget(0, 5);
-        userTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("Phone"),
-                                               QStringLiteral("Nickname"), QStringLiteral("Balance"),
-                                               QStringLiteral("Status")});
-        setupTable(userTable_);
-
-        auto *tools = new QHBoxLayout;
-        tools->addWidget(new QLabel(QStringLiteral("Keyword")));
-        tools->addWidget(userKeywordEdit_);
-        tools->addWidget(userStatusCombo_);
-        tools->addWidget(refreshUsersButton_);
-        tools->addWidget(freezeUserButton_);
-        tools->addWidget(activateUserButton_);
-
-        auto *tab = new QWidget;
-        auto *layout = new QVBoxLayout(tab);
-        layout->addLayout(tools);
-        layout->addWidget(userTable_);
-        return tab;
-    }
-
-    QWidget *buildStationsTab()
-    {
-        stationNameEdit_ = new QLineEdit;
-        stationAddressEdit_ = new QLineEdit;
-        stationLatSpin_ = new QDoubleSpinBox;
-        stationLatSpin_->setRange(-90.0, 90.0);
-        stationLatSpin_->setDecimals(6);
-        stationLatSpin_->setValue(39.9);
-        stationLngSpin_ = new QDoubleSpinBox;
-        stationLngSpin_->setRange(-180.0, 180.0);
-        stationLngSpin_->setDecimals(6);
-        stationLngSpin_->setValue(116.3);
-        stationStatusCombo_ = new QComboBox;
-        stationStatusCombo_->addItems({QStringLiteral("open"), QStringLiteral("closed")});
-        refreshStationsButton_ = new QPushButton(QStringLiteral("Refresh"));
-        createStationButton_ = new QPushButton(QStringLiteral("Create"));
-        updateStationButton_ = new QPushButton(QStringLiteral("Update"));
-        openStationButton_ = new QPushButton(QStringLiteral("Open"));
-        closeStationButton_ = new QPushButton(QStringLiteral("Close"));
-
-        stationTable_ = new QTableWidget(0, 4);
-        stationTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("Name"),
-                                                  QStringLiteral("Address"), QStringLiteral("Status")});
-        setupTable(stationTable_);
-
-        auto *form = new QFormLayout;
-        form->addRow(QStringLiteral("Name"), stationNameEdit_);
-        form->addRow(QStringLiteral("Address"), stationAddressEdit_);
-        form->addRow(QStringLiteral("Latitude"), stationLatSpin_);
-        form->addRow(QStringLiteral("Longitude"), stationLngSpin_);
-        form->addRow(QStringLiteral("Status"), stationStatusCombo_);
-
-        auto *buttons = new QHBoxLayout;
-        buttons->addWidget(refreshStationsButton_);
-        buttons->addWidget(createStationButton_);
-        buttons->addWidget(updateStationButton_);
-        buttons->addWidget(openStationButton_);
-        buttons->addWidget(closeStationButton_);
-
-        auto *left = new QWidget;
-        auto *leftLayout = new QVBoxLayout(left);
-        leftLayout->addLayout(form);
-        leftLayout->addLayout(buttons);
-
-        auto *splitter = new QSplitter;
-        splitter->addWidget(left);
-        splitter->addWidget(stationTable_);
-        splitter->setStretchFactor(0, 1);
-        splitter->setStretchFactor(1, 2);
-
-        auto *tab = new QWidget;
-        auto *layout = new QVBoxLayout(tab);
-        layout->addWidget(splitter);
-        return tab;
-    }
-
-    QWidget *buildChargersTab()
-    {
-        chargerStationIdSpin_ = new QSpinBox;
-        chargerStationIdSpin_->setRange(1, 1000000);
-        chargerStationIdSpin_->setValue(1);
-        chargerCodeEdit_ = new QLineEdit(QStringLiteral("NEW-F-001"));
-        chargerTypeCombo_ = new QComboBox;
-        chargerTypeCombo_->addItems({QStringLiteral("fast"), QStringLiteral("slow")});
-        chargerPowerSpin_ = new QDoubleSpinBox;
-        chargerPowerSpin_->setRange(0.1, 1000.0);
-        chargerPowerSpin_->setDecimals(2);
-        chargerPowerSpin_->setValue(120.0);
-        chargerStatusCombo_ = new QComboBox;
-        chargerStatusCombo_->addItems({QStringLiteral("idle"), QStringLiteral("charging"),
-                                       QStringLiteral("fault"), QStringLiteral("offline")});
-        refreshChargersButton_ = new QPushButton(QStringLiteral("Refresh"));
-        createChargerButton_ = new QPushButton(QStringLiteral("Create"));
-        updateChargerButton_ = new QPushButton(QStringLiteral("Update"));
-        setChargerStatusButton_ = new QPushButton(QStringLiteral("Set Status"));
-
-        chargerTable_ = new QTableWidget(0, 7);
-        chargerTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("Station"),
-                                                  QStringLiteral("Code"), QStringLiteral("Type"),
-                                                  QStringLiteral("Power"), QStringLiteral("Status"),
-                                                  QStringLiteral("Orders")});
-        setupTable(chargerTable_);
-
-        auto *form = new QFormLayout;
-        form->addRow(QStringLiteral("Station ID"), chargerStationIdSpin_);
-        form->addRow(QStringLiteral("Code"), chargerCodeEdit_);
-        form->addRow(QStringLiteral("Type"), chargerTypeCombo_);
-        form->addRow(QStringLiteral("Power kW"), chargerPowerSpin_);
-        form->addRow(QStringLiteral("Status"), chargerStatusCombo_);
-
-        auto *buttons = new QHBoxLayout;
-        buttons->addWidget(refreshChargersButton_);
-        buttons->addWidget(createChargerButton_);
-        buttons->addWidget(updateChargerButton_);
-        buttons->addWidget(setChargerStatusButton_);
-
-        telemetryTable_ = new QTableWidget(0, 5);
-        telemetryTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("Status"),
-                                                    QStringLiteral("Power"), QStringLiteral("Energy"),
-                                                    QStringLiteral("Time")});
-        setupTable(telemetryTable_);
-
-        auto *left = new QWidget;
-        auto *leftLayout = new QVBoxLayout(left);
-        leftLayout->addLayout(form);
-        leftLayout->addLayout(buttons);
-        leftLayout->addWidget(new QLabel(QStringLiteral("Telemetry")));
-        leftLayout->addWidget(telemetryTable_);
-
-        auto *splitter = new QSplitter;
-        splitter->addWidget(left);
-        splitter->addWidget(chargerTable_);
-        splitter->setStretchFactor(0, 1);
-        splitter->setStretchFactor(1, 2);
-
-        auto *tab = new QWidget;
-        auto *layout = new QVBoxLayout(tab);
-        layout->addWidget(splitter);
-        return tab;
-    }
-
-    QWidget *buildOrdersTab()
-    {
-        orderUserIdSpin_ = new QSpinBox;
-        orderUserIdSpin_->setRange(0, 1000000);
-        orderStatusCombo_ = new QComboBox;
-        orderStatusCombo_->addItems({QStringLiteral("all"), QStringLiteral("reserved"),
-                                     QStringLiteral("charging"), QStringLiteral("pending_settlement"),
-                                     QStringLiteral("completed"), QStringLiteral("cancelled")});
-        refreshOrdersButton_ = new QPushButton(QStringLiteral("Refresh Orders"));
-        stopOrderButton_ = new QPushButton(QStringLiteral("Stop Charging"));
-        settleOrderButton_ = new QPushButton(QStringLiteral("Settle"));
-        orderEnergySpin_ = new QDoubleSpinBox;
-        orderEnergySpin_->setRange(0.1, 9999.0);
-        orderEnergySpin_->setDecimals(2);
-        orderEnergySpin_->setValue(5.0);
-
-        orderTable_ = new QTableWidget(0, 8);
-        orderTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("No"),
-                                                QStringLiteral("User"), QStringLiteral("Station"),
-                                                QStringLiteral("Charger"), QStringLiteral("Status"),
-                                                QStringLiteral("Energy"), QStringLiteral("Amount")});
-        setupTable(orderTable_);
-
-        auto *tools = new QHBoxLayout;
-        tools->addWidget(new QLabel(QStringLiteral("User ID 0=all")));
-        tools->addWidget(orderUserIdSpin_);
-        tools->addWidget(orderStatusCombo_);
-        tools->addWidget(refreshOrdersButton_);
-        tools->addWidget(new QLabel(QStringLiteral("Stop Energy")));
-        tools->addWidget(orderEnergySpin_);
-        tools->addWidget(stopOrderButton_);
-        tools->addWidget(settleOrderButton_);
-
-        auto *tab = new QWidget;
-        auto *layout = new QVBoxLayout(tab);
-        layout->addLayout(tools);
-        layout->addWidget(orderTable_);
-        return tab;
+        dashboardHtmlEdit_->setReadOnly(true);
+        dashboardHtmlEdit_->setLineWrapMode(QPlainTextEdit::NoWrap);
+#ifdef HAS_QT_WEBENGINE
+        dashboardHtmlEdit_->hide();
+        dashboardWebContainer_->setMinimumHeight(500);
+        dashboardStatusLabel_->setText(QStringLiteral("Embedded WebEngine dashboard ready"));
+#else
+        dashboardWebContainer_->hide();
+        dashboardHtmlEdit_->setMinimumHeight(500);
+        dashboardStatusLabel_->setText(QStringLiteral("HTML preview mode (Qt WebEngine unavailable)"));
+#endif
     }
 
     void setupTable(QTableWidget *table)
@@ -329,6 +226,11 @@ private:
         connect(updateChargerButton_, &QPushButton::clicked, this, &AdminWindow::updateCharger);
         connect(setChargerStatusButton_, &QPushButton::clicked, this, &AdminWindow::setChargerStatus);
         connect(chargerTable_, &QTableWidget::itemSelectionChanged, this, &AdminWindow::chargerSelected);
+        connect(refreshOverviewButton_, &QPushButton::clicked, this, &AdminWindow::refreshOverview);
+        connect(generateForecastButton_, &QPushButton::clicked, this, &AdminWindow::generateForecast);
+        connect(refreshForecastsButton_, &QPushButton::clicked, this, &AdminWindow::refreshForecasts);
+        connect(refreshDashboardButton_, &QPushButton::clicked, this, &AdminWindow::refreshDashboard);
+        connect(exportDashboardButton_, &QPushButton::clicked, this, &AdminWindow::exportDashboardHtml);
         connect(refreshOrdersButton_, &QPushButton::clicked, this, &AdminWindow::refreshOrders);
         connect(stopOrderButton_, &QPushButton::clicked, this, &AdminWindow::stopOrder);
         connect(settleOrderButton_, &QPushButton::clicked, this, &AdminWindow::settleOrder);
@@ -410,6 +312,9 @@ private:
             refreshUsers();
             refreshStations();
             refreshChargers();
+            refreshOverview();
+            refreshForecasts();
+            refreshDashboard();
             refreshOrders();
         });
     }
@@ -670,6 +575,328 @@ private:
         });
     }
 
+    void refreshOverview()
+    {
+        if (!ensureLogin()) {
+            return;
+        }
+        runAction(QStringLiteral("Overview Failed"), [this]() {
+            QJsonObject payload = authed(QStringLiteral("statistics.overview"));
+            if (overviewStationIdSpin_->value() > 0) {
+                payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
+            }
+            const QJsonObject data = request(payload);
+            summaryOrderCountLabel_->setText(QString::number(data.value(QStringLiteral("order_count")).toInt()));
+            summaryEnergyLabel_->setText(QString::number(data.value(QStringLiteral("completed_energy_kwh")).toDouble(), 'f', 2));
+            summaryRevenueLabel_->setText(moneyText(static_cast<int>(data.value(QStringLiteral("revenue_cents")).toDouble())));
+            summaryAverageEnergyLabel_->setText(QString::number(data.value(QStringLiteral("average_energy_kwh")).toDouble(), 'f', 2));
+            summaryLoadLabel_->setText(QString::number(data.value(QStringLiteral("current_load_kw")).toDouble(), 'f', 2));
+            summaryUsersLabel_->setText(QString::number(data.value(QStringLiteral("user_count")).toInt()));
+            summaryStationsLabel_->setText(QString::number(data.value(QStringLiteral("station_count")).toInt()));
+            summaryChargersLabel_->setText(QString::number(data.value(QStringLiteral("charger_count")).toInt()));
+
+            fillStatusTable(orderStatusTable_, data.value(QStringLiteral("order_statuses")).toArray(), QStringLiteral("count"));
+            fillChargerStatusTable(chargerStatusOverviewTable_, data.value(QStringLiteral("charger_statuses")).toArray());
+        });
+    }
+
+    QString dashboardHtml(const QJsonObject &overview, const QJsonArray &forecasts,
+                          const QJsonArray &actualLoads) const
+    {
+        const QString orderCount = QString::number(overview.value(QStringLiteral("order_count")).toInt());
+        const QString completedEnergy = QString::number(overview.value(QStringLiteral("completed_energy_kwh")).toDouble(), 'f', 2);
+        const QString revenueYuan = QString::number(overview.value(QStringLiteral("revenue_yuan")).toDouble(), 'f', 2);
+        const QString loadKw = QString::number(overview.value(QStringLiteral("current_load_kw")).toDouble(), 'f', 2);
+        const QString summaryJson = javascriptJson(QJsonDocument(overview));
+        const QString forecastsJson = javascriptJson(QJsonDocument(forecasts));
+        const QString actualLoadsJson = javascriptJson(QJsonDocument(actualLoads));
+        QString html = QStringLiteral(R"HTML(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    body { margin: 0; background: #0f172a; color: #e2e8f0; font-family: Arial, sans-serif; }
+    .wrap { padding: 16px; display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card { background: #111827; border: 1px solid #334155; border-radius: 8px; padding: 12px; }
+    .title { font-size: 14px; color: #94a3b8; }
+    .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+    .panel { background: #0b1120; border: 1px solid #334155; border-radius: 8px; padding: 12px; min-height: 320px; }
+    #chart, #loadChart { width: 100%; height: 320px; }
+    .chart-fallback { box-sizing: border-box; display: flex; align-items: center; justify-content: center; height: 320px; padding: 24px; color: #fbbf24; text-align: center; }
+    pre { white-space: pre-wrap; word-break: break-word; color: #cbd5e1; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card"><div class="title">Orders</div><div class="value">%1</div></div>
+    <div class="card"><div class="title">Completed Energy kWh</div><div class="value">%2</div></div>
+    <div class="card"><div class="title">Revenue Yuan</div><div class="value">%3</div></div>
+    <div class="card"><div class="title">Current Load kW</div><div class="value">%4</div></div>
+    <div class="panel" style="grid-column: span 2;">
+      <div id="chart"></div>
+    </div>
+    <div class="panel" style="grid-column: span 2;">
+      <div id="loadChart"></div>
+    </div>
+    <div class="panel" style="grid-column: span 4;">
+      <div class="title">Dashboard Data JSON</div>
+      <pre id="dashboardJson"></pre>
+    </div>
+  </div>
+  <script>
+    const overview = %5;
+    const forecasts = %6;
+    const actualLoads = %7;
+    document.getElementById('dashboardJson').textContent = JSON.stringify(
+      { overview, actual_load_history: actualLoads, forecasts }, null, 2);
+    const orderStatuses = overview.order_statuses || [];
+    const chartMessage = (id, message) => {
+      const element = document.getElementById(id);
+      element.className = 'chart-fallback';
+      element.textContent = message;
+    };
+    if (!window.echarts) {
+      chartMessage('chart', 'ECharts could not be loaded. Connect to the network, then refresh this dashboard.');
+      chartMessage('loadChart', 'Actual telemetry and forecast data are still available in the exported HTML below.');
+    } else {
+      const orderChart = echarts.init(document.getElementById('chart'));
+      orderChart.setOption({
+        backgroundColor: 'transparent',
+        title: { text: 'Order Status', textStyle: { color: '#e2e8f0' } },
+        tooltip: {},
+        xAxis: { type: 'category', data: orderStatuses.map(x => x.status), axisLabel: { color: '#cbd5e1' } },
+        yAxis: { type: 'value', axisLabel: { color: '#cbd5e1' } },
+        series: [{ type: 'bar', data: orderStatuses.map(x => x.count), itemStyle: { color: '#38bdf8' } }]
+      });
+      const forecastTime = point => {
+        const generatedAt = new Date(point.generated_at).getTime();
+        return Number.isNaN(generatedAt)
+          ? `${point.generated_at} / +${point.horizon_hours}h`
+          : new Date(generatedAt + point.horizon_hours * 3600000).toISOString();
+      };
+      const actualByTime = new Map(actualLoads.map(point => [point.recorded_at, point.actual_load_kw]));
+      const forecastByTime = new Map();
+      forecasts.forEach(point => {
+        const time = forecastTime(point);
+        if (!forecastByTime.has(time)) {
+          forecastByTime.set(time, point.predicted_load_kw);
+        }
+      });
+      const timeline = [...new Set([...actualByTime.keys(), ...forecastByTime.keys()])].sort();
+      if (timeline.length === 0) {
+        chartMessage('loadChart', 'No actual telemetry or forecast records match the current filters.');
+      } else {
+        const loadChart = echarts.init(document.getElementById('loadChart'));
+        loadChart.setOption({
+          backgroundColor: 'transparent',
+          title: { text: 'Actual and Forecast Load', textStyle: { color: '#e2e8f0' } },
+          tooltip: { trigger: 'axis' },
+          legend: { data: ['Actual kW', 'Forecast kW'], textStyle: { color: '#cbd5e1' } },
+          xAxis: {
+            type: 'category',
+            data: timeline,
+            axisLabel: { color: '#cbd5e1', rotate: 25, formatter: value => value.replace('T', ' ').slice(5, 16) }
+          },
+          yAxis: { type: 'value', axisLabel: { color: '#cbd5e1' } },
+          series: [
+            {
+              name: 'Actual kW',
+              type: 'line',
+              smooth: true,
+              connectNulls: false,
+              data: timeline.map(time => actualByTime.has(time) ? actualByTime.get(time) : null),
+              itemStyle: { color: '#38bdf8' }
+            },
+            {
+              name: 'Forecast kW',
+              type: 'line',
+              smooth: true,
+              connectNulls: false,
+              data: timeline.map(time => forecastByTime.has(time) ? forecastByTime.get(time) : null),
+              itemStyle: { color: '#f59e0b' }
+            }
+          ]
+        });
+        window.addEventListener('resize', () => { orderChart.resize(); loadChart.resize(); });
+      }
+    }
+  </script>
+</body>
+</html>
+)HTML");
+        html.replace(QStringLiteral("%7"), actualLoadsJson);
+        html.replace(QStringLiteral("%6"), forecastsJson);
+        html.replace(QStringLiteral("%5"), summaryJson);
+        html.replace(QStringLiteral("%4"), loadKw);
+        html.replace(QStringLiteral("%3"), revenueYuan);
+        html.replace(QStringLiteral("%2"), completedEnergy);
+        html.replace(QStringLiteral("%1"), orderCount);
+        return html;
+    }
+
+    QJsonObject dashboardOverview()
+    {
+        QJsonObject payload = authed(QStringLiteral("statistics.overview"));
+        if (overviewStationIdSpin_->value() > 0) {
+            payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
+        }
+        return request(payload);
+    }
+
+    QJsonArray dashboardForecasts()
+    {
+        QJsonObject payload = authed(QStringLiteral("forecast.list"));
+        if (overviewStationIdSpin_->value() > 0) {
+            payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
+        }
+        const QString horizonText = overviewHorizonCombo_->currentText();
+        if (horizonText != QStringLiteral("all")) {
+            payload.insert(QStringLiteral("horizon_hours"), horizonText.toInt());
+        }
+        payload.insert(QStringLiteral("limit"), 20);
+        return request(payload).value(QStringLiteral("forecasts")).toArray();
+    }
+
+    QJsonArray dashboardLoadHistory()
+    {
+        QJsonObject payload = authed(QStringLiteral("statistics.load_history"));
+        if (overviewStationIdSpin_->value() > 0) {
+            payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
+        }
+        payload.insert(QStringLiteral("limit"), 50);
+        return request(payload).value(QStringLiteral("samples")).toArray();
+    }
+
+    void renderDashboard(const QJsonObject &overview, const QJsonArray &forecasts,
+                         const QJsonArray &actualLoads)
+    {
+        const QString html = dashboardHtml(overview, forecasts, actualLoads);
+        dashboardHtmlEdit_->setPlainText(html);
+        dashboardStatusLabel_->setText(QStringLiteral("Dashboard updated"));
+#ifdef HAS_QT_WEBENGINE
+        if (!dashboardWebView_) {
+            dashboardWebView_ = new QWebEngineView(dashboardWebContainer_);
+            auto *layout = new QVBoxLayout(dashboardWebContainer_);
+            layout->setContentsMargins(0, 0, 0, 0);
+            layout->addWidget(dashboardWebView_);
+        }
+        dashboardWebView_->setHtml(html);
+#else
+        Q_UNUSED(html)
+#endif
+    }
+
+    void refreshDashboard()
+    {
+        if (!ensureLogin()) {
+            return;
+        }
+        runAction(QStringLiteral("Dashboard Failed"), [this]() {
+            const QJsonObject overview = dashboardOverview();
+            const QJsonArray forecasts = dashboardForecasts();
+            const QJsonArray actualLoads = dashboardLoadHistory();
+            renderDashboard(overview, forecasts, actualLoads);
+        });
+    }
+
+    void exportDashboardHtml()
+    {
+        if (dashboardHtmlEdit_->toPlainText().isEmpty()) {
+            QMessageBox::information(this, QStringLiteral("Dashboard"), QStringLiteral("Refresh dashboard first."));
+            return;
+        }
+        const QString filePath = QFileDialog::getSaveFileName(
+            this, QStringLiteral("Export Dashboard HTML"), QString(), QStringLiteral("HTML Files (*.html)"));
+        if (filePath.isEmpty()) {
+            return;
+        }
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+            QMessageBox::warning(this, QStringLiteral("Export Failed"), file.errorString());
+            return;
+        }
+        QTextStream stream(&file);
+        stream << dashboardHtmlEdit_->toPlainText();
+        dashboardStatusLabel_->setText(QStringLiteral("Dashboard exported"));
+    }
+
+    void generateForecast()
+    {
+        if (!ensureLogin()) {
+            return;
+        }
+        runAction(QStringLiteral("Generate Forecast Failed"), [this]() {
+            QJsonObject payload = authed(QStringLiteral("forecast.generate"));
+            if (overviewStationIdSpin_->value() > 0) {
+                payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
+            }
+            const QString horizonText = overviewHorizonCombo_->currentText();
+            if (horizonText != QStringLiteral("all")) {
+                payload.insert(QStringLiteral("horizon_hours"), horizonText.toInt());
+            } else {
+                payload.insert(QStringLiteral("horizon_hours"), 1);
+            }
+            request(payload);
+            refreshForecasts();
+        });
+    }
+
+    void refreshForecasts()
+    {
+        if (!ensureLogin()) {
+            return;
+        }
+        runAction(QStringLiteral("Forecasts Failed"), [this]() {
+            QJsonObject payload = authed(QStringLiteral("forecast.list"));
+            if (overviewStationIdSpin_->value() > 0) {
+                payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
+            }
+            const QString horizonText = overviewHorizonCombo_->currentText();
+            if (horizonText != QStringLiteral("all")) {
+                payload.insert(QStringLiteral("horizon_hours"), horizonText.toInt());
+            }
+            payload.insert(QStringLiteral("limit"), 50);
+            const QJsonArray forecasts = request(payload).value(QStringLiteral("forecasts")).toArray();
+            forecastTable_->setRowCount(forecasts.size());
+            for (int row = 0; row < forecasts.size(); ++row) {
+                const QJsonObject forecast = forecasts.at(row).toObject();
+                const int id = forecast.value(QStringLiteral("id")).toInt();
+                setItem(forecastTable_, row, 0, QString::number(id), id);
+                setItem(forecastTable_, row, 1, forecast.value(QStringLiteral("station_name")).toString(), id);
+                setItem(forecastTable_, row, 2, QString::number(forecast.value(QStringLiteral("horizon_hours")).toInt()), id);
+                setItem(forecastTable_, row, 3, QString::number(forecast.value(QStringLiteral("predicted_load_kw")).toDouble(), 'f', 2), id);
+                setItem(forecastTable_, row, 4, forecast.value(QStringLiteral("generated_at")).toString(), id);
+            }
+            forecastTable_->resizeColumnsToContents();
+        });
+    }
+
+    void fillStatusTable(QTableWidget *table, const QJsonArray &rows, const QString &countKey)
+    {
+        table->setRowCount(rows.size());
+        for (int row = 0; row < rows.size(); ++row) {
+            const QJsonObject item = rows.at(row).toObject();
+            setItem(table, row, 0, item.value(QStringLiteral("status")).toString());
+            setItem(table, row, 1, QString::number(item.value(countKey).toInt()));
+        }
+        table->resizeColumnsToContents();
+    }
+
+    void fillChargerStatusTable(QTableWidget *table, const QJsonArray &rows)
+    {
+        table->setRowCount(rows.size());
+        for (int row = 0; row < rows.size(); ++row) {
+            const QJsonObject item = rows.at(row).toObject();
+            setItem(table, row, 0, item.value(QStringLiteral("status")).toString());
+            setItem(table, row, 1, QString::number(item.value(QStringLiteral("count")).toInt()));
+            setItem(table, row, 2, QString::number(item.value(QStringLiteral("current_power_kw")).toDouble(), 'f', 2));
+        }
+        table->resizeColumnsToContents();
+    }
+
     void refreshOrders()
     {
         if (!ensureLogin()) {
@@ -749,6 +976,11 @@ private:
     QLabel *adminLabel_ = nullptr;
     QTabWidget *tabs_ = nullptr;
     QPlainTextEdit *logEdit_ = nullptr;
+    QWidget *dashboardWebContainer_ = nullptr;
+    QPlainTextEdit *dashboardHtmlEdit_ = nullptr;
+    QLabel *dashboardStatusLabel_ = nullptr;
+    QPushButton *refreshDashboardButton_ = nullptr;
+    QPushButton *exportDashboardButton_ = nullptr;
 
     QLineEdit *userKeywordEdit_ = nullptr;
     QComboBox *userStatusCombo_ = nullptr;
@@ -789,8 +1021,29 @@ private:
     QDoubleSpinBox *orderEnergySpin_ = nullptr;
     QTableWidget *orderTable_ = nullptr;
 
+    QSpinBox *overviewStationIdSpin_ = nullptr;
+    QComboBox *overviewHorizonCombo_ = nullptr;
+    QPushButton *refreshOverviewButton_ = nullptr;
+    QPushButton *generateForecastButton_ = nullptr;
+    QPushButton *refreshForecastsButton_ = nullptr;
+    QLabel *summaryOrderCountLabel_ = nullptr;
+    QLabel *summaryEnergyLabel_ = nullptr;
+    QLabel *summaryRevenueLabel_ = nullptr;
+    QLabel *summaryAverageEnergyLabel_ = nullptr;
+    QLabel *summaryLoadLabel_ = nullptr;
+    QLabel *summaryUsersLabel_ = nullptr;
+    QLabel *summaryStationsLabel_ = nullptr;
+    QLabel *summaryChargersLabel_ = nullptr;
+    QTableWidget *forecastTable_ = nullptr;
+    QTableWidget *orderStatusTable_ = nullptr;
+    QTableWidget *chargerStatusOverviewTable_ = nullptr;
+
     QString sessionToken_;
     int requestId_ = 0;
+#ifdef HAS_QT_WEBENGINE
+    QWebEngineView *dashboardWebView_ = nullptr;
+#endif
+    Ui::AdminWindow *ui = nullptr;
 };
 
 int main(int argc, char *argv[])

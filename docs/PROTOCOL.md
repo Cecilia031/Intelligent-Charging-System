@@ -347,7 +347,7 @@ Allowed status values are `idle`, `charging`, `fault` and `offline`. Fault or of
 Request:
 
 ```json
-{"action":"order.create","user_id":1,"charger_id":1}
+{"action":"order.create","session_token":"user-1-1788412345678-abc123","charger_id":1}
 ```
 
 Success data:
@@ -376,14 +376,14 @@ Validation rules:
 - Station must be open.
 - Charger must be idle.
 - Charger must not already have a `reserved` or `charging` order.
-- The caller may use either `session_token` or `user_id`, but normal user clients should use `session_token`.
+- A valid user `session_token` is required.
 
 ## `order.start`
 
 Request:
 
 ```json
-{"action":"order.start","order_id":1}
+{"action":"order.start","session_token":"user-1-1788412345678-abc123","order_id":1}
 ```
 
 The order changes from `reserved` to `charging`, and the charger changes to `charging`.
@@ -394,7 +394,7 @@ The caller must be the order owner or an administrator.
 Request:
 
 ```json
-{"action":"order.stop","order_id":1,"energy_kwh":12.5}
+{"action":"order.stop","session_token":"user-1-1788412345678-abc123","order_id":1,"energy_kwh":12.5}
 ```
 
 The order changes from `charging` to `pending_settlement`, final energy is recorded, telemetry is inserted, and the charger returns to `idle`.
@@ -415,7 +415,7 @@ Only `reserved` orders can be cancelled. The caller must be the order owner or a
 Request:
 
 ```json
-{"action":"order.settle","order_id":1}
+{"action":"order.settle","session_token":"user-1-1788412345678-abc123","order_id":1}
 ```
 
 Optional field:
@@ -441,29 +441,30 @@ When telemetry exists, the response also includes `latest_telemetry`, `estimated
 Request:
 
 ```json
-{"action":"order.list","user_id":1}
+{"action":"order.list","session_token":"user-1-1788412345678-abc123"}
 ```
 
 Optional fields:
 
-- `user_id`: when omitted, returns all orders.
+- `user_id`: administrators may filter by user; users may only omit it or provide their own id.
 - `status`: filters by order status.
 - `limit`: defaults to `50`, maximum `200`.
 
-Users can only list their own orders. Administrators can filter by `user_id`.
+`session_token` is required. Users can only list their own orders. Administrators can
+view all orders or filter by `user_id`.
 
 ## `balance.recharge`
 
 Request by yuan:
 
 ```json
-{"action":"balance.recharge","user_id":1,"amount":50}
+{"action":"balance.recharge","session_token":"user-1-1788412345678-abc123","amount":50}
 ```
 
 Request by cents:
 
 ```json
-{"action":"balance.recharge","user_id":1,"amount_cents":5000}
+{"action":"balance.recharge","session_token":"user-1-1788412345678-abc123","amount_cents":5000}
 ```
 
 Success data includes the new balance and balance log id.
@@ -476,7 +477,8 @@ Request:
 {"action":"balance.logs","session_token":"user-1-1788412345678-abc123","limit":5}
 ```
 
-Users can only see their own balance logs. Administrators may add `user_id` to query others.
+`session_token` is required. Users can only see their own balance logs. Administrators
+may add `user_id` to query others.
 
 ## `telemetry.report`
 
@@ -503,3 +505,69 @@ Request:
 ```
 
 Returns recent telemetry rows for one charger.
+
+## `statistics.overview`
+
+Request:
+
+```json
+{"action":"statistics.overview","session_token":"admin-1-1788412345678-abc123","station_id":1}
+```
+
+Administrator-only endpoint. `station_id` is optional; omit it or use `0` for all stations.
+Optional `from` and `to` fields filter order records using ISO-8601 timestamps.
+
+The response contains order count, completed energy, revenue, average completed energy,
+current charger load, entity counts, plus `order_statuses` and `charger_statuses` arrays.
+
+## `statistics.load_history`
+
+Request:
+
+```json
+{"action":"statistics.load_history","session_token":"admin-1-1788412345678-abc123","station_id":1,"limit":50}
+```
+
+Administrator-only endpoint. `station_id` is optional and `limit` defaults to `50`
+with a maximum of `200`.
+
+The response returns chronological `samples`. Each sample groups telemetry records
+with the same `recorded_at` timestamp and contains `actual_load_kw`, the summed
+power of the matching station's chargers. An empty `samples` array is a valid
+result when no telemetry exists.
+
+## `forecast.generate`
+
+Request:
+
+```json
+{
+  "action":"forecast.generate",
+  "session_token":"admin-1-1788412345678-abc123",
+  "station_id":1,
+  "horizon_hours":6
+}
+```
+
+Administrator-only endpoint. `station_id` is optional and `horizon_hours` must be `1`,
+`6`, or `24`.
+
+The first implementation uses an explainable demo baseline based on current charger load,
+recent telemetry power, and installed charger capacity. It persists every generated result
+in `load_forecasts`.
+
+## `forecast.list`
+
+Request:
+
+```json
+{"action":"forecast.list","session_token":"admin-1-1788412345678-abc123","limit":20}
+```
+
+Administrator-only endpoint. Optional fields:
+
+- `station_id`: filters one station.
+- `horizon_hours`: `1`, `6`, or `24`.
+- `limit`: defaults to `20`, maximum `200`.
+
+Returns stored forecast records with station name, horizon, predicted load, and generation time.

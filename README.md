@@ -13,3 +13,11 @@ For Qt Creator 5, open `charging_server.pro` for the server, `user_client.pro` f
 ## Protocol
 
 See [docs/PROTOCOL.md](docs/PROTOCOL.md).
+
+## Pre-Push Check
+
+On Ubuntu, run the Phase 7 check before pushing or merging:
+
+```bash
+bash tools/phase7_check.sh
+```

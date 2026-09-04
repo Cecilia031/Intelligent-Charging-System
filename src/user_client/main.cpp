@@ -23,6 +23,8 @@
 
 #include <functional>
 
+#include "ui_user_client.h"
+
 namespace {
 
 QString moneyText(int cents)
@@ -57,157 +59,70 @@ public:
     explicit UserWindow(QWidget *parent = nullptr)
         : QWidget(parent)
     {
-        setWindowTitle(QStringLiteral("Charging User Client"));
-        resize(1180, 760);
         buildUi();
         connectSignals();
+    }
+
+    ~UserWindow() override
+    {
+        delete ui;
     }
 
 private:
     void buildUi()
     {
-        hostEdit_ = new QLineEdit(QStringLiteral("127.0.0.1"));
-        portSpin_ = new QSpinBox;
-        portSpin_->setRange(1, 65535);
-        portSpin_->setValue(45454);
-        phoneEdit_ = new QLineEdit(QStringLiteral("13800000001"));
-        nicknameEdit_ = new QLineEdit;
-        loginButton_ = new QPushButton(QStringLiteral("Login"));
-        updateProfileButton_ = new QPushButton(QStringLiteral("Update Profile"));
-        profileLabel_ = new QLabel(QStringLiteral("Not logged in"));
+        ui = new Ui::UserWindow;
+        ui->setupUi(this);
 
-        auto *connectionBox = new QGroupBox(QStringLiteral("Connection And Account"));
-        auto *connectionLayout = new QFormLayout(connectionBox);
-        connectionLayout->addRow(QStringLiteral("Host"), hostEdit_);
-        connectionLayout->addRow(QStringLiteral("Port"), portSpin_);
-        connectionLayout->addRow(QStringLiteral("Phone"), phoneEdit_);
-        connectionLayout->addRow(QStringLiteral("Nickname"), nicknameEdit_);
-        connectionLayout->addRow(loginButton_, updateProfileButton_);
-        connectionLayout->addRow(QStringLiteral("Current User"), profileLabel_);
+        setWindowTitle(QStringLiteral("Charging User Client"));
+        resize(1180, 760);
 
-        keywordEdit_ = new QLineEdit;
-        refreshStationsButton_ = new QPushButton(QStringLiteral("Refresh Stations"));
-        stationTable_ = new QTableWidget(0, 4);
-        stationTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("Name"),
-                                                  QStringLiteral("Address"), QStringLiteral("Status")});
+        hostEdit_ = ui->hostEdit;
+        portSpin_ = ui->portSpin;
+        phoneEdit_ = ui->phoneEdit;
+        nicknameEdit_ = ui->nicknameEdit;
+        loginButton_ = ui->loginButton;
+        updateProfileButton_ = ui->updateProfileButton;
+        profileLabel_ = ui->profileLabel;
+
+        keywordEdit_ = ui->keywordEdit;
+        refreshStationsButton_ = ui->refreshStationsButton;
+        stationTable_ = ui->stationTable;
+
+        refreshChargersButton_ = ui->refreshChargersButton;
+        chargerTable_ = ui->chargerTable;
+
+        createOrderButton_ = ui->createOrderButton;
+        cancelOrderButton_ = ui->cancelOrderButton;
+        startOrderButton_ = ui->startOrderButton;
+        stopOrderButton_ = ui->stopOrderButton;
+        settleOrderButton_ = ui->settleOrderButton;
+        refreshCurrentButton_ = ui->refreshCurrentButton;
+        refreshOrdersButton_ = ui->refreshOrdersButton;
+        rechargeButton_ = ui->rechargeButton;
+        energySpin_ = ui->energySpin;
+        rechargeSpin_ = ui->rechargeSpin;
+        currentOrderLabel_ = ui->currentOrderLabel;
+        orderTable_ = ui->orderTable;
+        balanceLogTable_ = ui->balanceLogTable;
+        telemetryTable_ = ui->telemetryTable;
+        logEdit_ = ui->logEdit;
+
         stationTable_->horizontalHeader()->setStretchLastSection(true);
         stationTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
         stationTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-
-        auto *stationBox = new QGroupBox(QStringLiteral("Stations"));
-        auto *stationLayout = new QVBoxLayout(stationBox);
-        auto *stationTools = new QHBoxLayout;
-        stationTools->addWidget(keywordEdit_);
-        stationTools->addWidget(refreshStationsButton_);
-        stationLayout->addLayout(stationTools);
-        stationLayout->addWidget(stationTable_);
-
-        refreshChargersButton_ = new QPushButton(QStringLiteral("Refresh Chargers"));
-        chargerTable_ = new QTableWidget(0, 5);
-        chargerTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("Code"),
-                                                  QStringLiteral("Type"), QStringLiteral("Power"),
-                                                  QStringLiteral("Status")});
         chargerTable_->horizontalHeader()->setStretchLastSection(true);
         chargerTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
         chargerTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-
-        auto *chargerBox = new QGroupBox(QStringLiteral("Chargers"));
-        auto *chargerLayout = new QVBoxLayout(chargerBox);
-        chargerLayout->addWidget(refreshChargersButton_);
-        chargerLayout->addWidget(chargerTable_);
-
-        createOrderButton_ = new QPushButton(QStringLiteral("Reserve"));
-        cancelOrderButton_ = new QPushButton(QStringLiteral("Cancel"));
-        startOrderButton_ = new QPushButton(QStringLiteral("Start"));
-        stopOrderButton_ = new QPushButton(QStringLiteral("Stop"));
-        settleOrderButton_ = new QPushButton(QStringLiteral("Settle"));
-        refreshCurrentButton_ = new QPushButton(QStringLiteral("Refresh Current"));
-        refreshOrdersButton_ = new QPushButton(QStringLiteral("Refresh Orders"));
-        rechargeButton_ = new QPushButton(QStringLiteral("Recharge"));
-
-        energySpin_ = new QDoubleSpinBox;
-        energySpin_->setRange(0.1, 9999.0);
-        energySpin_->setDecimals(2);
-        energySpin_->setValue(10.5);
-        rechargeSpin_ = new QDoubleSpinBox;
-        rechargeSpin_->setRange(1.0, 100000.0);
-        rechargeSpin_->setDecimals(2);
-        rechargeSpin_->setValue(50.0);
-        currentOrderLabel_ = new QLabel(QStringLiteral("No active order"));
-
-        auto *orderBox = new QGroupBox(QStringLiteral("Charging Order"));
-        auto *orderLayout = new QVBoxLayout(orderBox);
-        auto *orderTools1 = new QHBoxLayout;
-        orderTools1->addWidget(createOrderButton_);
-        orderTools1->addWidget(cancelOrderButton_);
-        orderTools1->addWidget(startOrderButton_);
-        orderTools1->addWidget(new QLabel(QStringLiteral("Energy kWh")));
-        orderTools1->addWidget(energySpin_);
-        orderTools1->addWidget(stopOrderButton_);
-        orderTools1->addWidget(settleOrderButton_);
-        auto *orderTools2 = new QHBoxLayout;
-        orderTools2->addWidget(refreshCurrentButton_);
-        orderTools2->addWidget(refreshOrdersButton_);
-        orderTools2->addWidget(new QLabel(QStringLiteral("Recharge Yuan")));
-        orderTools2->addWidget(rechargeSpin_);
-        orderTools2->addWidget(rechargeButton_);
-        orderLayout->addLayout(orderTools1);
-        orderLayout->addLayout(orderTools2);
-        orderLayout->addWidget(currentOrderLabel_);
-
-        orderTable_ = new QTableWidget(0, 7);
-        orderTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("No"),
-                                                QStringLiteral("Charger"), QStringLiteral("Station"),
-                                                QStringLiteral("Status"), QStringLiteral("Energy"),
-                                                QStringLiteral("Amount")});
         orderTable_->horizontalHeader()->setStretchLastSection(true);
         orderTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
         orderTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        orderLayout->addWidget(orderTable_);
-
-        balanceLogTable_ = new QTableWidget(0, 5);
-        balanceLogTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("Change"),
-                                                     QStringLiteral("After"), QStringLiteral("Reason"),
-                                                     QStringLiteral("Time")});
         balanceLogTable_->horizontalHeader()->setStretchLastSection(true);
         balanceLogTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-
-        telemetryTable_ = new QTableWidget(0, 5);
-        telemetryTable_->setHorizontalHeaderLabels({QStringLiteral("ID"), QStringLiteral("Status"),
-                                                    QStringLiteral("Power"), QStringLiteral("Energy"),
-                                                    QStringLiteral("Time")});
         telemetryTable_->horizontalHeader()->setStretchLastSection(true);
         telemetryTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-
-        auto *dataBox = new QGroupBox(QStringLiteral("Balance Logs And Telemetry"));
-        auto *dataLayout = new QHBoxLayout(dataBox);
-        dataLayout->addWidget(balanceLogTable_);
-        dataLayout->addWidget(telemetryTable_);
-
-        logEdit_ = new QPlainTextEdit;
         logEdit_->setReadOnly(true);
         logEdit_->setMaximumBlockCount(300);
-
-        auto *left = new QWidget;
-        auto *leftLayout = new QVBoxLayout(left);
-        leftLayout->addWidget(connectionBox);
-        leftLayout->addWidget(stationBox);
-        leftLayout->addWidget(chargerBox);
-
-        auto *right = new QWidget;
-        auto *rightLayout = new QVBoxLayout(right);
-        rightLayout->addWidget(orderBox);
-        rightLayout->addWidget(dataBox);
-        rightLayout->addWidget(logEdit_);
-
-        auto *splitter = new QSplitter;
-        splitter->addWidget(left);
-        splitter->addWidget(right);
-        splitter->setStretchFactor(0, 1);
-        splitter->setStretchFactor(1, 2);
-
-        auto *root = new QVBoxLayout(this);
-        root->addWidget(splitter);
     }
 
     void connectSignals()
@@ -622,6 +537,7 @@ private:
     QTableWidget *balanceLogTable_ = nullptr;
     QTableWidget *telemetryTable_ = nullptr;
     QPlainTextEdit *logEdit_ = nullptr;
+    Ui::UserWindow *ui = nullptr;
 
     QString sessionToken_;
     int userId_ = 0;

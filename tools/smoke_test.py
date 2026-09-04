@@ -290,6 +290,52 @@ def main() -> int:
         "telemetry.list",
         send(args.host, args.port, {"action": "telemetry.list", "charger_id": charger_id, "limit": 5}),
     )
+    expect_success(
+        "statistics.overview",
+        send(
+            args.host,
+            args.port,
+            {"action": "statistics.overview", "session_token": admin_token, "station_id": station_id},
+        ),
+    )
+    load_history = expect_success(
+        "statistics.load_history",
+        send(
+            args.host,
+            args.port,
+            {"action": "statistics.load_history", "session_token": admin_token, "station_id": station_id},
+        ),
+    )
+    if not load_history["samples"] or "actual_load_kw" not in load_history["samples"][0]:
+        raise AssertionError(f"statistics.load_history returned no usable telemetry sample: {load_history}")
+    print("[OK] statistics.load_history returns actual load samples")
+    expect_success(
+        "forecast.generate",
+        send(
+            args.host,
+            args.port,
+            {
+                "action": "forecast.generate",
+                "session_token": admin_token,
+                "station_id": station_id,
+                "horizon_hours": 1,
+            },
+        ),
+    )
+    expect_success(
+        "forecast.list",
+        send(
+            args.host,
+            args.port,
+            {
+                "action": "forecast.list",
+                "session_token": admin_token,
+                "station_id": station_id,
+                "horizon_hours": 1,
+                "limit": 5,
+            },
+        ),
+    )
 
     expect_success(
         "admin.charger.set_status offline",
@@ -319,7 +365,7 @@ def main() -> int:
         ),
     )
 
-    print("Phase 0/1/2/3 smoke test passed.")
+    print("Phase 0/1/2/3/extension smoke test passed.")
     return 0
 
 

@@ -1,0 +1,1076 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AdminWindow</class>
+ <widget class="QWidget" name="AdminWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1240</width>
+    <height>780</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Charging Admin Client</string>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="loginBox">
+     <property name="title">
+      <string>Admin Login</string>
+     </property>
+     <layout class="QFormLayout" name="loginLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="hostLabel">
+        <property name="text">
+         <string>Host</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="hostEdit">
+        <property name="text">
+         <string>127.0.0.1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="portLabel">
+        <property name="text">
+         <string>Port</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSpinBox" name="portSpin">
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>65535</number>
+        </property>
+        <property name="value">
+         <number>45454</number>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="usernameLabel">
+        <property name="text">
+         <string>Username</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="usernameEdit">
+        <property name="text">
+         <string>admin</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="passwordLabel">
+        <property name="text">
+         <string>Password</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="passwordEdit">
+        <property name="text">
+         <string>admin123</string>
+        </property>
+        <property name="echoMode">
+         <enum>QLineEdit::Password</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="2">
+       <widget class="QPushButton" name="loginButton">
+        <property name="text">
+         <string>Login</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="adminTitleLabel">
+        <property name="text">
+         <string>Current Admin</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLabel" name="adminLabel">
+        <property name="text">
+         <string>Not logged in</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="tabs">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="usersTab">
+      <attribute name="title">
+       <string>Users</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="usersLayout">
+       <item>
+        <layout class="QHBoxLayout" name="userToolsLayout">
+         <item>
+          <widget class="QLabel" name="userKeywordLabel">
+           <property name="text">
+            <string>Keyword</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="userKeywordEdit"/>
+         </item>
+         <item>
+          <widget class="QComboBox" name="userStatusCombo">
+           <item>
+            <property name="text">
+             <string>all</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>active</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>frozen</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="refreshUsersButton">
+           <property name="text">
+            <string>Refresh</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="freezeUserButton">
+           <property name="text">
+            <string>Freeze</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="activateUserButton">
+           <property name="text">
+            <string>Activate</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="userTable">
+         <column>
+          <property name="text">
+           <string>ID</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Phone</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Nickname</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Balance</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Status</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="stationsTab">
+      <attribute name="title">
+       <string>Stations</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="stationsTabLayout">
+       <item>
+        <widget class="QWidget" name="stationFormPanel">
+         <layout class="QVBoxLayout" name="stationPanelLayout">
+          <item>
+           <layout class="QFormLayout" name="stationFormLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="stationNameLabel">
+              <property name="text">
+               <string>Name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="stationNameEdit"/>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="stationAddressLabel">
+              <property name="text">
+               <string>Address</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="stationAddressEdit"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="stationLatLabel">
+              <property name="text">
+               <string>Latitude</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QDoubleSpinBox" name="stationLatSpin">
+              <property name="decimals">
+               <number>6</number>
+              </property>
+              <property name="minimum">
+               <double>-90.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>90.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>39.900000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="stationLngLabel">
+              <property name="text">
+               <string>Longitude</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QDoubleSpinBox" name="stationLngSpin">
+              <property name="decimals">
+               <number>6</number>
+              </property>
+              <property name="minimum">
+               <double>-180.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>180.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>116.300000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="stationStatusLabel">
+              <property name="text">
+               <string>Status</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QComboBox" name="stationStatusCombo">
+              <item>
+               <property name="text">
+                <string>open</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>closed</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="stationButtonsLayout">
+            <item>
+             <widget class="QPushButton" name="refreshStationsButton">
+              <property name="text">
+               <string>Refresh</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="createStationButton">
+              <property name="text">
+               <string>Create</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="updateStationButton">
+              <property name="text">
+               <string>Update</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="stationStatusButtonsLayout">
+            <item>
+             <widget class="QPushButton" name="openStationButton">
+              <property name="text">
+               <string>Open</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="closeStationButton">
+              <property name="text">
+               <string>Close</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="stationSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="stationTable">
+         <column>
+          <property name="text">
+           <string>ID</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Name</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Address</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Status</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="chargersTab">
+      <attribute name="title">
+       <string>Chargers</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="chargersTabLayout">
+       <item>
+        <widget class="QWidget" name="chargerFormPanel">
+         <layout class="QVBoxLayout" name="chargerPanelLayout">
+          <item>
+           <layout class="QFormLayout" name="chargerFormLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="chargerStationLabel">
+              <property name="text">
+               <string>Station ID</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QSpinBox" name="chargerStationIdSpin">
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>1000000</number>
+              </property>
+              <property name="value">
+               <number>1</number>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="chargerCodeLabel">
+              <property name="text">
+               <string>Code</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="chargerCodeEdit">
+              <property name="text">
+               <string>NEW-F-001</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="chargerTypeLabel">
+              <property name="text">
+               <string>Type</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QComboBox" name="chargerTypeCombo">
+              <item>
+               <property name="text">
+                <string>fast</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>slow</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="chargerPowerLabel">
+              <property name="text">
+               <string>Power kW</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QDoubleSpinBox" name="chargerPowerSpin">
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>0.100000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>1000.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>120.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="chargerStatusLabel">
+              <property name="text">
+               <string>Status</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QComboBox" name="chargerStatusCombo">
+              <item>
+               <property name="text">
+                <string>idle</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>charging</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>fault</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>offline</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="chargerButtonsLayout">
+            <item>
+             <widget class="QPushButton" name="refreshChargersButton">
+              <property name="text">
+               <string>Refresh</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="createChargerButton">
+              <property name="text">
+               <string>Create</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="updateChargerButton">
+              <property name="text">
+               <string>Update</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="setChargerStatusButton">
+              <property name="text">
+               <string>Set Status</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QLabel" name="telemetryLabel">
+            <property name="text">
+             <string>Telemetry</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTableWidget" name="telemetryTable">
+            <column>
+             <property name="text">
+              <string>ID</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Status</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Power</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Energy</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Time</string>
+             </property>
+            </column>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="chargerTable">
+         <column>
+          <property name="text">
+           <string>ID</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Station</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Code</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Type</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Power</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Status</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Orders</string>
+          </property>
+         </column>
+        </widget>
+        </item>
+       </layout>
+      </widget>
+     <widget class="QWidget" name="overviewTab">
+      <attribute name="title">
+       <string>Overview</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="overviewLayout">
+       <item>
+        <layout class="QHBoxLayout" name="overviewToolsLayout">
+         <item>
+          <widget class="QLabel" name="overviewStationLabel">
+           <property name="text">
+            <string>Station ID 0=all</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="overviewStationIdSpin">
+           <property name="maximum">
+            <number>1000000</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="overviewHorizonCombo">
+           <item>
+            <property name="text">
+             <string>all</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>24</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="refreshOverviewButton">
+           <property name="text">
+            <string>Refresh Overview</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="generateForecastButton">
+           <property name="text">
+            <string>Generate Forecast</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="refreshForecastsButton">
+           <property name="text">
+            <string>Refresh Forecasts</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="overviewBodyLayout">
+         <item>
+          <widget class="QWidget" name="overviewSummaryPanel">
+           <layout class="QFormLayout" name="overviewSummaryLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="summaryOrderCountLabelName">
+              <property name="text">
+               <string>Orders</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLabel" name="summaryOrderCountLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="summaryEnergyLabelName">
+              <property name="text">
+               <string>Completed Energy kWh</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLabel" name="summaryEnergyLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="summaryRevenueLabelName">
+              <property name="text">
+               <string>Revenue Yuan</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLabel" name="summaryRevenueLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="summaryAverageEnergyLabelName">
+              <property name="text">
+               <string>Average Energy kWh</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLabel" name="summaryAverageEnergyLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="summaryLoadLabelName">
+              <property name="text">
+               <string>Current Load kW</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QLabel" name="summaryLoadLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0">
+             <widget class="QLabel" name="summaryUsersLabelName">
+              <property name="text">
+               <string>Users</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="1">
+             <widget class="QLabel" name="summaryUsersLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="0">
+             <widget class="QLabel" name="summaryStationsLabelName">
+              <property name="text">
+               <string>Stations</string>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="1">
+             <widget class="QLabel" name="summaryStationsLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="0">
+             <widget class="QLabel" name="summaryChargersLabelName">
+              <property name="text">
+               <string>Chargers</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="1">
+             <widget class="QLabel" name="summaryChargersLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QTableWidget" name="forecastTable">
+           <column>
+            <property name="text">
+             <string>ID</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Station</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Hours</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Load kW</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Generated</string>
+            </property>
+           </column>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="overviewStatusLayout">
+         <item>
+          <widget class="QTableWidget" name="orderStatusTable">
+           <column>
+            <property name="text">
+             <string>Status</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Count</string>
+            </property>
+           </column>
+          </widget>
+         </item>
+         <item>
+          <widget class="QTableWidget" name="chargerStatusOverviewTable">
+           <column>
+            <property name="text">
+             <string>Status</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Count</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Power kW</string>
+            </property>
+           </column>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="dashboardTab">
+      <attribute name="title">
+       <string>Dashboard</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="dashboardLayout">
+       <item>
+        <layout class="QHBoxLayout" name="dashboardToolsLayout">
+         <item>
+          <widget class="QPushButton" name="refreshDashboardButton">
+           <property name="text">
+            <string>Refresh Dashboard</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="exportDashboardButton">
+           <property name="text">
+            <string>Export HTML</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="dashboardStatusLabel">
+           <property name="text">
+            <string>Dashboard not loaded</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QWidget" name="dashboardWebContainer"/>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="dashboardHtmlEdit"/>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="ordersTab">
+      <attribute name="title">
+       <string>Orders</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="ordersLayout">
+       <item>
+        <layout class="QHBoxLayout" name="orderToolsLayout">
+         <item>
+          <widget class="QLabel" name="orderUserIdLabel">
+           <property name="text">
+            <string>User ID 0=all</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="orderUserIdSpin">
+           <property name="maximum">
+            <number>1000000</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="orderStatusCombo">
+           <item>
+            <property name="text">
+             <string>all</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>reserved</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>charging</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>pending_settlement</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>completed</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>cancelled</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="refreshOrdersButton">
+           <property name="text">
+            <string>Refresh Orders</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="orderEnergyLabel">
+           <property name="text">
+            <string>Stop Energy</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="orderEnergySpin">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>9999.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>5.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="stopOrderButton">
+           <property name="text">
+            <string>Stop Charging</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="settleOrderButton">
+           <property name="text">
+            <string>Settle</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="orderTable">
+         <column>
+          <property name="text">
+           <string>ID</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>No</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>User</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Station</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Charger</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Status</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Energy</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Amount</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPlainTextEdit" name="logEdit"/>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

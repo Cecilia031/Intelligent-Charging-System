@@ -77,6 +77,35 @@ QString readTextFile(const QString &path)
     return QString::fromUtf8(file.readAll());
 }
 
+QString resolveReadablePath(const QString &path)
+{
+    const QFileInfo original(path);
+    if (path.isEmpty() || original.isAbsolute()) {
+        return path;
+    }
+    if (original.exists() && original.isFile()) {
+        return original.absoluteFilePath();
+    }
+
+    const QDir appDir(QCoreApplication::applicationDirPath());
+    const QDir parentDir(appDir.filePath(QStringLiteral("..")));
+    const QStringList baseDirs = {
+        QDir::currentPath(),
+        QCoreApplication::applicationDirPath(),
+        parentDir.absolutePath(),
+        parentDir.filePath(QStringLiteral("Intelligent-Charging-System")),
+    };
+
+    for (const QString &baseDir : baseDirs) {
+        const QFileInfo candidate(QDir(baseDir).filePath(path));
+        if (candidate.exists() && candidate.isFile()) {
+            return candidate.absoluteFilePath();
+        }
+    }
+
+    return path;
+}
+
 QStringList splitSqlStatements(const QString &script)
 {
     QStringList statements;
@@ -268,6 +297,18 @@ QJsonObject telemetryToJson(const QSqlQuery &query)
     };
 }
 
+QJsonObject forecastToJson(const QSqlQuery &query)
+{
+    return {
+        {QStringLiteral("id"), sqlValue(query, QStringLiteral("id")).toInt()},
+        {QStringLiteral("station_id"), sqlValue(query, QStringLiteral("station_id")).toInt()},
+        {QStringLiteral("station_name"), sqlValue(query, QStringLiteral("station_name")).toString()},
+        {QStringLiteral("horizon_hours"), sqlValue(query, QStringLiteral("horizon_hours")).toInt()},
+        {QStringLiteral("predicted_load_kw"), sqlValue(query, QStringLiteral("predicted_load_kw")).toDouble()},
+        {QStringLiteral("generated_at"), sqlValue(query, QStringLiteral("generated_at")).toString()},
+    };
+}
+
 QString makeOrderNo()
 {
     const QString timestamp = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMddHHmmsszzz"));
@@ -432,6 +473,14 @@ private slots:
                 response = handleTelemetryReport(request);
             } else if (action == QStringLiteral("telemetry.list")) {
                 response = handleTelemetryList(request);
+            } else if (action == QStringLiteral("statistics.overview")) {
+                response = handleStatisticsOverview(request);
+            } else if (action == QStringLiteral("statistics.load_history")) {
+                response = handleStatisticsLoadHistory(request);
+            } else if (action == QStringLiteral("forecast.generate")) {
+                response = handleForecastGenerate(request);
+            } else if (action == QStringLiteral("forecast.list")) {
+                response = handleForecastList(request);
             } else {
                 response = errorResponse(action.isEmpty() ? QStringLiteral("unknown") : action,
                                          QStringLiteral("unsupported action"),
@@ -1090,12 +1139,12 @@ private:
     {
         int userId = 0;
         QString authError;
-        if (!resolveUserId(request, QStringLiteral("order.create"), &userId, &authError)) {
+        if (!requireUserSession(request, QStringLiteral("order.create"), &userId, &authError)) {
             return errorResponse(QStringLiteral("order.create"), authError);
         }
         const int chargerId = requestInt(request, QStringLiteral("charger_id"));
         if (userId <= 0 || chargerId <= 0) {
-            return errorResponse(QStringLiteral("order.create"), QStringLiteral("user_id and charger_id are required"));
+            return errorResponse(QStringLiteral("order.create"), QStringLiteral("charger_id is required"));
         }
 
         if (!db_.transaction()) {
@@ -1514,7 +1563,7 @@ private:
     {
         int userId = 0;
         QString authError;
-        if (!resolveUserId(request, QStringLiteral("order.current"), &userId, &authError)) {
+        if (!requireUserSession(request, QStringLiteral("order.current"), &userId, &authError)) {
             return errorResponse(QStringLiteral("order.current"), authError);
         }
 
@@ -1555,6 +1604,9 @@ private:
         QString authError;
         if (!readOptionalSession(request, &actorType, &actorId, &authError)) {
             return errorResponse(QStringLiteral("order.list"), authError);
+        }
+        if (actorType.isEmpty()) {
+            return errorResponse(QStringLiteral("order.list"), QStringLiteral("session_token is required"));
         }
 
         int userId = requestInt(request, QStringLiteral("user_id"), 0);
@@ -1610,7 +1662,7 @@ private:
     {
         int userId = 0;
         QString authError;
-        if (!resolveUserId(request, QStringLiteral("balance.recharge"), &userId, &authError)) {
+        if (!requireUserSession(request, QStringLiteral("balance.recharge"), &userId, &authError)) {
             return errorResponse(QStringLiteral("balance.recharge"), authError);
         }
         int amountCents = requestInt(request, QStringLiteral("amount_cents"), 0);
@@ -1620,7 +1672,7 @@ private:
         }
 
         if (userId <= 0 || amountCents <= 0) {
-            return errorResponse(QStringLiteral("balance.recharge"), QStringLiteral("user_id and positive amount are required"));
+            return errorResponse(QStringLiteral("balance.recharge"), QStringLiteral("positive amount is required"));
         }
 
         if (!db_.transaction()) {
@@ -1680,6 +1732,9 @@ private:
         QString authError;
         if (!readOptionalSession(request, &actorType, &actorId, &authError)) {
             return errorResponse(QStringLiteral("balance.logs"), authError);
+        }
+        if (actorType.isEmpty()) {
+            return errorResponse(QStringLiteral("balance.logs"), QStringLiteral("session_token is required"));
         }
 
         int userId = requestInt(request, QStringLiteral("user_id"), 0);
@@ -1806,6 +1861,349 @@ private:
         return okResponse(QStringLiteral("telemetry.list"), {
             {QStringLiteral("telemetry"), records},
         });
+    }
+
+    QJsonObject handleStatisticsOverview(const QJsonObject &request)
+    {
+        int adminId = 0;
+        QString authError;
+        if (!requireSession(request, QStringLiteral("admin"), &adminId, &authError)) {
+            return errorResponse(QStringLiteral("statistics.overview"), authError);
+        }
+        Q_UNUSED(adminId)
+
+        const int stationId = requestInt(request, QStringLiteral("station_id"), 0);
+        const QString from = request.value(QStringLiteral("from")).toString().trimmed();
+        const QString to = request.value(QStringLiteral("to")).toString().trimmed();
+
+        QString orderWhere = QStringLiteral(" WHERE 1 = 1");
+        if (stationId > 0) {
+            orderWhere += QStringLiteral(" AND c.station_id = :station_id");
+        }
+        if (!from.isEmpty()) {
+            orderWhere += QStringLiteral(" AND o.created_at >= :from");
+        }
+        if (!to.isEmpty()) {
+            orderWhere += QStringLiteral(" AND o.created_at <= :to");
+        }
+
+        QSqlQuery totals(db_);
+        totals.prepare(QStringLiteral(
+            "SELECT COUNT(*) AS order_count, "
+            "       COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.energy_kwh ELSE 0 END), 0) AS total_energy_kwh, "
+            "       COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.amount_cents ELSE 0 END), 0) AS revenue_cents, "
+            "       COALESCE(AVG(CASE WHEN o.status = 'completed' THEN o.energy_kwh END), 0) AS average_energy_kwh "
+            "FROM charging_orders o "
+            "JOIN chargers c ON c.id = o.charger_id") + orderWhere);
+        bindOverviewFilters(totals, stationId, from, to);
+        if (!totals.exec() || !totals.next()) {
+            return errorResponse(QStringLiteral("statistics.overview"), totals.lastError().text());
+        }
+
+        QSqlQuery statusQuery(db_);
+        statusQuery.prepare(QStringLiteral(
+            "SELECT o.status, COUNT(*) AS count "
+            "FROM charging_orders o "
+            "JOIN chargers c ON c.id = o.charger_id") + orderWhere
+                            + QStringLiteral(" GROUP BY o.status ORDER BY o.status"));
+        bindOverviewFilters(statusQuery, stationId, from, to);
+        if (!statusQuery.exec()) {
+            return errorResponse(QStringLiteral("statistics.overview"), statusQuery.lastError().text());
+        }
+
+        QJsonArray orderStatuses;
+        while (statusQuery.next()) {
+            orderStatuses.append(QJsonObject{
+                {QStringLiteral("status"), sqlValue(statusQuery, QStringLiteral("status")).toString()},
+                {QStringLiteral("count"), sqlValue(statusQuery, QStringLiteral("count")).toInt()},
+            });
+        }
+
+        QString chargerWhere;
+        if (stationId > 0) {
+            chargerWhere = QStringLiteral(" WHERE station_id = :station_id");
+        }
+        QSqlQuery chargerStatusQuery(db_);
+        chargerStatusQuery.prepare(QStringLiteral(
+            "SELECT status, COUNT(*) AS count, COALESCE(SUM(current_power_kw), 0) AS current_power_kw "
+            "FROM chargers") + chargerWhere + QStringLiteral(" GROUP BY status ORDER BY status"));
+        if (stationId > 0) {
+            chargerStatusQuery.bindValue(QStringLiteral(":station_id"), stationId);
+        }
+        if (!chargerStatusQuery.exec()) {
+            return errorResponse(QStringLiteral("statistics.overview"), chargerStatusQuery.lastError().text());
+        }
+
+        QJsonArray chargerStatuses;
+        double currentLoadKw = 0.0;
+        while (chargerStatusQuery.next()) {
+            const double statusPower = sqlValue(chargerStatusQuery, QStringLiteral("current_power_kw")).toDouble();
+            currentLoadKw += statusPower;
+            chargerStatuses.append(QJsonObject{
+                {QStringLiteral("status"), sqlValue(chargerStatusQuery, QStringLiteral("status")).toString()},
+                {QStringLiteral("count"), sqlValue(chargerStatusQuery, QStringLiteral("count")).toInt()},
+                {QStringLiteral("current_power_kw"), statusPower},
+            });
+        }
+
+        QSqlQuery entityCounts(db_);
+        entityCounts.prepare(QStringLiteral(
+            "SELECT "
+            "  (SELECT COUNT(*) FROM users) AS user_count, "
+            "  (SELECT COUNT(*) FROM stations) AS station_count, "
+            "  (SELECT COUNT(*) FROM chargers") + chargerWhere + QStringLiteral(") AS charger_count"));
+        if (stationId > 0) {
+            entityCounts.bindValue(QStringLiteral(":station_id"), stationId);
+        }
+        if (!entityCounts.exec() || !entityCounts.next()) {
+            return errorResponse(QStringLiteral("statistics.overview"), entityCounts.lastError().text());
+        }
+
+        const int revenueCents = sqlValue(totals, QStringLiteral("revenue_cents")).toInt();
+        return okResponse(QStringLiteral("statistics.overview"), {
+            {QStringLiteral("station_id"), stationId},
+            {QStringLiteral("order_count"), sqlValue(totals, QStringLiteral("order_count")).toInt()},
+            {QStringLiteral("completed_energy_kwh"), sqlValue(totals, QStringLiteral("total_energy_kwh")).toDouble()},
+            {QStringLiteral("revenue_cents"), revenueCents},
+            {QStringLiteral("revenue_yuan"), revenueCents / 100.0},
+            {QStringLiteral("average_energy_kwh"), sqlValue(totals, QStringLiteral("average_energy_kwh")).toDouble()},
+            {QStringLiteral("current_load_kw"), currentLoadKw},
+            {QStringLiteral("user_count"), sqlValue(entityCounts, QStringLiteral("user_count")).toInt()},
+            {QStringLiteral("station_count"), sqlValue(entityCounts, QStringLiteral("station_count")).toInt()},
+            {QStringLiteral("charger_count"), sqlValue(entityCounts, QStringLiteral("charger_count")).toInt()},
+            {QStringLiteral("order_statuses"), orderStatuses},
+            {QStringLiteral("charger_statuses"), chargerStatuses},
+        });
+    }
+
+    QJsonObject handleStatisticsLoadHistory(const QJsonObject &request)
+    {
+        int adminId = 0;
+        QString authError;
+        if (!requireSession(request, QStringLiteral("admin"), &adminId, &authError)) {
+            return errorResponse(QStringLiteral("statistics.load_history"), authError);
+        }
+        Q_UNUSED(adminId)
+
+        const int stationId = requestInt(request, QStringLiteral("station_id"), 0);
+        const int limit = std::clamp(requestInt(request, QStringLiteral("limit"), 50), 1, 200);
+        if (stationId > 0 && fetchStation(stationId).isEmpty()) {
+            return errorResponse(QStringLiteral("statistics.load_history"), QStringLiteral("station not found"));
+        }
+
+        QString innerSql = QStringLiteral(
+            "SELECT t.recorded_at AS recorded_at, COALESCE(SUM(t.power_kw), 0) AS actual_load_kw "
+            "FROM charger_telemetry t "
+            "JOIN chargers c ON c.id = t.charger_id");
+        if (stationId > 0) {
+            innerSql += QStringLiteral(" WHERE c.station_id = :station_id");
+        }
+        innerSql += QStringLiteral(
+            " GROUP BY t.recorded_at "
+            "ORDER BY t.recorded_at DESC "
+            "LIMIT :limit");
+
+        QSqlQuery query(db_);
+        query.prepare(QStringLiteral(
+            "SELECT recorded_at, actual_load_kw FROM (") + innerSql
+                      + QStringLiteral(") ORDER BY recorded_at ASC"));
+        if (stationId > 0) {
+            query.bindValue(QStringLiteral(":station_id"), stationId);
+        }
+        query.bindValue(QStringLiteral(":limit"), limit);
+        if (!query.exec()) {
+            return errorResponse(QStringLiteral("statistics.load_history"), query.lastError().text());
+        }
+
+        QJsonArray samples;
+        while (query.next()) {
+            samples.append(QJsonObject{
+                {QStringLiteral("recorded_at"), sqlValue(query, QStringLiteral("recorded_at")).toString()},
+                {QStringLiteral("actual_load_kw"), sqlValue(query, QStringLiteral("actual_load_kw")).toDouble()},
+            });
+        }
+
+        return okResponse(QStringLiteral("statistics.load_history"), {
+            {QStringLiteral("station_id"), stationId},
+            {QStringLiteral("samples"), samples},
+        });
+    }
+
+    QJsonObject handleForecastGenerate(const QJsonObject &request)
+    {
+        int adminId = 0;
+        QString authError;
+        if (!requireSession(request, QStringLiteral("admin"), &adminId, &authError)) {
+            return errorResponse(QStringLiteral("forecast.generate"), authError);
+        }
+        Q_UNUSED(adminId)
+
+        const int stationId = requestInt(request, QStringLiteral("station_id"), 0);
+        const int horizonHours = requestInt(request, QStringLiteral("horizon_hours"), 1);
+        if (horizonHours != 1 && horizonHours != 6 && horizonHours != 24) {
+            return errorResponse(QStringLiteral("forecast.generate"), QStringLiteral("horizon_hours must be 1, 6 or 24"));
+        }
+        if (stationId > 0 && fetchStation(stationId).isEmpty()) {
+            return errorResponse(QStringLiteral("forecast.generate"), QStringLiteral("station not found"));
+        }
+
+        const double predictedLoadKw = calculatePredictedLoadKw(stationId, horizonHours);
+        const QString now = nowUtc();
+        QSqlQuery query(db_);
+        query.prepare(QStringLiteral(
+            "INSERT INTO load_forecasts (station_id, horizon_hours, predicted_load_kw, generated_at) "
+            "VALUES (:station_id, :horizon_hours, :predicted_load_kw, :generated_at)"));
+        if (stationId > 0) {
+            query.bindValue(QStringLiteral(":station_id"), stationId);
+        } else {
+            query.bindValue(QStringLiteral(":station_id"), QVariant());
+        }
+        query.bindValue(QStringLiteral(":horizon_hours"), horizonHours);
+        query.bindValue(QStringLiteral(":predicted_load_kw"), predictedLoadKw);
+        query.bindValue(QStringLiteral(":generated_at"), now);
+        if (!query.exec()) {
+            return errorResponse(QStringLiteral("forecast.generate"), query.lastError().text());
+        }
+
+        const int forecastId = query.lastInsertId().toInt();
+        return okResponse(QStringLiteral("forecast.generate"), {
+            {QStringLiteral("forecast"), fetchForecast(forecastId)},
+            {QStringLiteral("method"), QStringLiteral("demo_weighted_current_recent_capacity")},
+        });
+    }
+
+    QJsonObject handleForecastList(const QJsonObject &request)
+    {
+        int adminId = 0;
+        QString authError;
+        if (!requireSession(request, QStringLiteral("admin"), &adminId, &authError)) {
+            return errorResponse(QStringLiteral("forecast.list"), authError);
+        }
+        Q_UNUSED(adminId)
+
+        const int stationId = requestInt(request, QStringLiteral("station_id"), 0);
+        const int horizonHours = requestInt(request, QStringLiteral("horizon_hours"), 0);
+        if (horizonHours != 0 && horizonHours != 1 && horizonHours != 6 && horizonHours != 24) {
+            return errorResponse(QStringLiteral("forecast.list"), QStringLiteral("horizon_hours must be 1, 6 or 24"));
+        }
+        const int limit = std::clamp(requestInt(request, QStringLiteral("limit"), 20), 1, 200);
+
+        QString sql = forecastSelectSql();
+        QStringList clauses;
+        if (stationId > 0) {
+            clauses.append(QStringLiteral("f.station_id = :station_id"));
+        }
+        if (horizonHours > 0) {
+            clauses.append(QStringLiteral("f.horizon_hours = :horizon_hours"));
+        }
+        if (!clauses.isEmpty()) {
+            sql += QStringLiteral(" WHERE ") + clauses.join(QStringLiteral(" AND "));
+        }
+        sql += QStringLiteral(" ORDER BY f.id DESC LIMIT :limit");
+
+        QSqlQuery query(db_);
+        query.prepare(sql);
+        if (stationId > 0) {
+            query.bindValue(QStringLiteral(":station_id"), stationId);
+        }
+        if (horizonHours > 0) {
+            query.bindValue(QStringLiteral(":horizon_hours"), horizonHours);
+        }
+        query.bindValue(QStringLiteral(":limit"), limit);
+        if (!query.exec()) {
+            return errorResponse(QStringLiteral("forecast.list"), query.lastError().text());
+        }
+
+        QJsonArray forecasts;
+        while (query.next()) {
+            forecasts.append(forecastToJson(query));
+        }
+
+        return okResponse(QStringLiteral("forecast.list"), {
+            {QStringLiteral("forecasts"), forecasts},
+        });
+    }
+
+    void bindOverviewFilters(QSqlQuery &query, int stationId, const QString &from, const QString &to)
+    {
+        if (stationId > 0) {
+            query.bindValue(QStringLiteral(":station_id"), stationId);
+        }
+        if (!from.isEmpty()) {
+            query.bindValue(QStringLiteral(":from"), from);
+        }
+        if (!to.isEmpty()) {
+            query.bindValue(QStringLiteral(":to"), to);
+        }
+    }
+
+    QString forecastSelectSql() const
+    {
+        return QStringLiteral(
+            "SELECT f.id, f.station_id, COALESCE(s.name, 'All Stations') AS station_name, "
+            "       f.horizon_hours, f.predicted_load_kw, f.generated_at "
+            "FROM load_forecasts f "
+            "LEFT JOIN stations s ON s.id = f.station_id");
+    }
+
+    QJsonObject fetchForecast(int forecastId)
+    {
+        QSqlQuery query(db_);
+        query.prepare(forecastSelectSql() + QStringLiteral(" WHERE f.id = :forecast_id"));
+        query.bindValue(QStringLiteral(":forecast_id"), forecastId);
+        if (!query.exec() || !query.next()) {
+            return {};
+        }
+        return forecastToJson(query);
+    }
+
+    double sumDouble(const QString &sql, int stationId)
+    {
+        QSqlQuery query(db_);
+        query.prepare(sql);
+        if (stationId > 0) {
+            query.bindValue(QStringLiteral(":station_id"), stationId);
+        }
+        if (!query.exec() || !query.next()) {
+            return 0.0;
+        }
+        return query.value(0).toDouble();
+    }
+
+    double calculatePredictedLoadKw(int stationId, int horizonHours)
+    {
+        QString chargerWhere;
+        QString telemetryWhere;
+        if (stationId > 0) {
+            chargerWhere = QStringLiteral(" WHERE station_id = :station_id");
+            telemetryWhere = QStringLiteral(" WHERE c.station_id = :station_id");
+        }
+
+        const double currentLoadKw = sumDouble(
+            QStringLiteral("SELECT COALESCE(SUM(current_power_kw), 0) FROM chargers") + chargerWhere,
+            stationId);
+        const double capacityKw = sumDouble(
+            QStringLiteral("SELECT COALESCE(SUM(power_kw), 0) FROM chargers") + chargerWhere,
+            stationId);
+        const double recentAverageKw = sumDouble(
+            QStringLiteral(
+                "SELECT COALESCE(AVG(power_kw), 0) FROM ("
+                "  SELECT t.power_kw FROM charger_telemetry t "
+                "  JOIN chargers c ON c.id = t.charger_id")
+                + telemetryWhere
+                + QStringLiteral(" ORDER BY t.id DESC LIMIT 200)"),
+            stationId);
+
+        double horizonFactor = 0.55;
+        if (horizonHours == 6) {
+            horizonFactor = 0.45;
+        } else if (horizonHours == 24) {
+            horizonFactor = 0.35;
+        }
+
+        const double capacityBaselineKw = capacityKw * horizonFactor;
+        const double predicted = currentLoadKw * 0.50 + recentAverageKw * 0.35 + capacityBaselineKw * 0.15;
+        return std::round(std::max(0.0, predicted) * 100.0) / 100.0;
     }
 
     QString orderSelectSql() const
@@ -2027,28 +2425,17 @@ private:
         return true;
     }
 
-    bool resolveUserId(const QJsonObject &request, const QString &action, int *userId, QString *error)
+    bool requireUserSession(const QJsonObject &request, const QString &action, int *userId, QString *error)
     {
-        QString actorType;
-        int actorId = 0;
-        if (!readOptionalSession(request, &actorType, &actorId, error)) {
+        if (!requireSession(request, QStringLiteral("user"), userId, error)) {
+            if (*error == QStringLiteral("session_token is required")) {
+                *error = QStringLiteral("%1 requires a valid user session").arg(action);
+            }
             return false;
         }
-
         const int requestedUserId = requestInt(request, QStringLiteral("user_id"), 0);
-        if (actorType == QStringLiteral("user")) {
-            if (requestedUserId > 0 && requestedUserId != actorId) {
-                *error = QStringLiteral("users can only operate on their own account");
-                return false;
-            }
-            *userId = actorId;
-            Q_UNUSED(action)
-            return true;
-        }
-
-        *userId = requestedUserId;
-        if (*userId <= 0) {
-            *error = QStringLiteral("%1 requires session_token or user_id").arg(action);
+        if (requestedUserId > 0 && requestedUserId != *userId) {
+            *error = QStringLiteral("users can only operate on their own account");
             return false;
         }
         return true;
@@ -2079,12 +2466,7 @@ private:
             return true;
         }
 
-        const int requestedUserId = requestInt(request, QStringLiteral("user_id"), 0);
-        if (requestedUserId > 0 && requestedUserId == orderUserId) {
-            return true;
-        }
-
-        *error = QStringLiteral("session_token or matching user_id is required");
+        *error = QStringLiteral("valid user or administrator session is required");
         return false;
     }
 
@@ -2163,8 +2545,8 @@ int main(int argc, char *argv[])
     }
 
     const QString dbPath = parser.value(QStringLiteral("db"));
-    const QString schemaPath = parser.value(QStringLiteral("schema"));
-    const QString seedPath = parser.value(QStringLiteral("seed"));
+    const QString schemaPath = resolveReadablePath(parser.value(QStringLiteral("schema")));
+    const QString seedPath = resolveReadablePath(parser.value(QStringLiteral("seed")));
 
     QString error;
     if (!initializeDatabase(dbPath, schemaPath, seedPath, &error)) {

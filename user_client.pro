@@ -8,3 +8,6 @@ TEMPLATE = app
 
 SOURCES += \
     src/user_client/main.cpp
+
+FORMS += \
+    src/user_client/user_client.ui
