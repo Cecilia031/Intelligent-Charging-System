@@ -11,9 +11,16 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Charging User Client</string>
+   <string>汽车充电用户端</string>
   </property>
   <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QLabel" name="headerLabel">
+     <property name="text">
+      <string>汽车充电服务用户端&#10;智能预约、实时充电、余额结算与充电记录查询</string>
+     </property>
+    </widget>
+   </item>
    <item>
     <widget class="QSplitter" name="mainSplitter">
      <property name="orientation">
@@ -24,13 +31,13 @@
        <item>
         <widget class="QGroupBox" name="connectionBox">
          <property name="title">
-          <string>Connection And Account</string>
+          <string>连接与账户</string>
          </property>
          <layout class="QFormLayout" name="connectionLayout">
           <item row="0" column="0">
            <widget class="QLabel" name="hostLabel">
             <property name="text">
-             <string>Host</string>
+             <string>服务器地址</string>
             </property>
            </widget>
           </item>
@@ -44,7 +51,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="portLabel">
             <property name="text">
-             <string>Port</string>
+             <string>端口</string>
             </property>
            </widget>
           </item>
@@ -64,7 +71,7 @@
           <item row="2" column="0">
            <widget class="QLabel" name="phoneLabel">
             <property name="text">
-             <string>Phone</string>
+             <string>手机号</string>
             </property>
            </widget>
           </item>
@@ -78,7 +85,7 @@
           <item row="3" column="0">
            <widget class="QLabel" name="nicknameLabel">
             <property name="text">
-             <string>Nickname</string>
+             <string>昵称</string>
             </property>
            </widget>
           </item>
@@ -90,14 +97,14 @@
             <item>
              <widget class="QPushButton" name="loginButton">
               <property name="text">
-               <string>Login</string>
+               <string>登录</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="updateProfileButton">
               <property name="text">
-               <string>Update Profile</string>
+               <string>更新资料</string>
               </property>
              </widget>
             </item>
@@ -106,14 +113,14 @@
           <item row="5" column="0">
            <widget class="QLabel" name="currentUserTitleLabel">
             <property name="text">
-             <string>Current User</string>
+             <string>当前用户</string>
             </property>
            </widget>
           </item>
           <item row="5" column="1">
            <widget class="QLabel" name="profileLabel">
             <property name="text">
-             <string>Not logged in</string>
+             <string>未登录</string>
             </property>
            </widget>
           </item>
@@ -123,7 +130,7 @@
        <item>
         <widget class="QGroupBox" name="stationBox">
          <property name="title">
-          <string>Stations</string>
+          <string>充电站</string>
          </property>
          <layout class="QVBoxLayout" name="stationLayout">
           <item>
@@ -131,14 +138,14 @@
             <item>
              <widget class="QLineEdit" name="keywordEdit">
               <property name="placeholderText">
-               <string>Keyword</string>
+               <string>输入站点关键字</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="refreshStationsButton">
               <property name="text">
-               <string>Refresh Stations</string>
+               <string>刷新站点</string>
               </property>
              </widget>
             </item>
@@ -148,22 +155,22 @@
            <widget class="QTableWidget" name="stationTable">
             <column>
              <property name="text">
-              <string>ID</string>
+              <string>编号</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Name</string>
+              <string>名称</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Address</string>
+              <string>地址</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Status</string>
+              <string>状态</string>
              </property>
             </column>
            </widget>
@@ -174,13 +181,13 @@
        <item>
         <widget class="QGroupBox" name="chargerBox">
          <property name="title">
-          <string>Chargers</string>
+          <string>充电桩</string>
          </property>
          <layout class="QVBoxLayout" name="chargerLayout">
           <item>
            <widget class="QPushButton" name="refreshChargersButton">
             <property name="text">
-             <string>Refresh Chargers</string>
+             <string>刷新充电桩</string>
             </property>
            </widget>
           </item>
@@ -188,27 +195,27 @@
            <widget class="QTableWidget" name="chargerTable">
             <column>
              <property name="text">
-              <string>ID</string>
+              <string>编号</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Code</string>
+              <string>桩编号</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Type</string>
+              <string>类型</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Power</string>
+              <string>功率(kW)</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Status</string>
+              <string>状态</string>
              </property>
             </column>
            </widget>
@@ -223,7 +230,7 @@
        <item>
         <widget class="QGroupBox" name="orderBox">
          <property name="title">
-          <string>Charging Order</string>
+          <string>充电订单</string>
          </property>
          <layout class="QVBoxLayout" name="orderLayout">
           <item>
@@ -231,28 +238,28 @@
             <item>
              <widget class="QPushButton" name="createOrderButton">
               <property name="text">
-               <string>Reserve</string>
+               <string>预约</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="cancelOrderButton">
               <property name="text">
-               <string>Cancel</string>
+               <string>取消</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="startOrderButton">
               <property name="text">
-               <string>Start</string>
+               <string>开始充电</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QLabel" name="energyLabel">
               <property name="text">
-               <string>Energy kWh</string>
+               <string>充电电量(kWh)</string>
               </property>
              </widget>
             </item>
@@ -275,14 +282,14 @@
             <item>
              <widget class="QPushButton" name="stopOrderButton">
               <property name="text">
-               <string>Stop</string>
+               <string>停止充电</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="settleOrderButton">
               <property name="text">
-               <string>Settle</string>
+               <string>结算</string>
               </property>
              </widget>
             </item>
@@ -293,21 +300,21 @@
             <item>
              <widget class="QPushButton" name="refreshCurrentButton">
               <property name="text">
-               <string>Refresh Current</string>
+               <string>刷新当前订单</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="refreshOrdersButton">
               <property name="text">
-               <string>Refresh Orders</string>
+               <string>刷新订单</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QLabel" name="rechargeLabel">
               <property name="text">
-               <string>Recharge Yuan</string>
+               <string>充值金额(元)</string>
               </property>
              </widget>
             </item>
@@ -330,7 +337,7 @@
             <item>
              <widget class="QPushButton" name="rechargeButton">
               <property name="text">
-               <string>Recharge</string>
+               <string>充值</string>
               </property>
              </widget>
             </item>
@@ -339,7 +346,7 @@
           <item>
            <widget class="QLabel" name="currentOrderLabel">
             <property name="text">
-             <string>No active order</string>
+             <string>暂无进行中的订单</string>
             </property>
            </widget>
           </item>
@@ -347,37 +354,37 @@
            <widget class="QTableWidget" name="orderTable">
             <column>
              <property name="text">
-              <string>ID</string>
+              <string>编号</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>No</string>
+              <string>订单号</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Charger</string>
+              <string>充电桩</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Station</string>
+              <string>充电站</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Status</string>
+              <string>状态</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Energy</string>
+              <string>电量(kWh)</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Amount</string>
+              <string>金额(元)</string>
              </property>
             </column>
            </widget>
@@ -388,34 +395,34 @@
        <item>
         <widget class="QGroupBox" name="dataBox">
          <property name="title">
-          <string>Balance Logs And Telemetry</string>
+          <string>余额流水与设备遥测</string>
          </property>
          <layout class="QHBoxLayout" name="dataLayout">
           <item>
            <widget class="QTableWidget" name="balanceLogTable">
             <column>
              <property name="text">
-              <string>ID</string>
+              <string>编号</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Change</string>
+              <string>变动金额</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>After</string>
+              <string>变动后余额</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Reason</string>
+              <string>原因</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Time</string>
+              <string>时间</string>
              </property>
             </column>
            </widget>
@@ -424,27 +431,27 @@
            <widget class="QTableWidget" name="telemetryTable">
             <column>
              <property name="text">
-              <string>ID</string>
+              <string>编号</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Status</string>
+              <string>状态</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Power</string>
+              <string>功率(kW)</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Energy</string>
+              <string>电量(kWh)</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>Time</string>
+              <string>时间</string>
              </property>
             </column>
            </widget>

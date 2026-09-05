@@ -25,6 +25,7 @@
 #include <QTextStream>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QVariant>
 #include <QWidget>
 
 #include <functional>
@@ -61,13 +62,227 @@ QString currentText(QTableWidget *table, int column)
     return item ? item->text() : QString();
 }
 
-void setItem(QTableWidget *table, int row, int column, const QString &text, int id = 0)
+QString currentValue(QTableWidget *table, int column)
+{
+    const QList<QTableWidgetItem *> selected = table->selectedItems();
+    if (selected.isEmpty()) {
+        return {};
+    }
+    QTableWidgetItem *item = table->item(selected.first()->row(), column);
+    if (!item) {
+        return {};
+    }
+    const QVariant value = item->data(Qt::UserRole + 1);
+    return value.isValid() ? value.toString() : item->text();
+}
+
+void setItem(QTableWidget *table, int row, int column, const QString &text, int id = 0,
+             const QString &value = QString())
 {
     auto *item = new QTableWidgetItem(text);
     if (id > 0) {
         item->setData(Qt::UserRole, id);
     }
+    if (!value.isEmpty()) {
+        item->setData(Qt::UserRole + 1, value);
+    }
     table->setItem(row, column, item);
+}
+
+QString comboValue(const QComboBox *combo)
+{
+    const QVariant data = combo->currentData();
+    return data.isValid() ? data.toString() : combo->currentText();
+}
+
+void setComboByValue(QComboBox *combo, const QString &value)
+{
+    for (int i = 0; i < combo->count(); ++i) {
+        if (combo->itemData(i).toString() == value || combo->itemText(i) == value) {
+            combo->setCurrentIndex(i);
+            return;
+        }
+    }
+}
+
+QString statusText(const QString &value)
+{
+    if (value == QStringLiteral("active")) {
+        return QStringLiteral("正常");
+    }
+    if (value == QStringLiteral("frozen")) {
+        return QStringLiteral("冻结");
+    }
+    if (value == QStringLiteral("open")) {
+        return QStringLiteral("开放");
+    }
+    if (value == QStringLiteral("closed")) {
+        return QStringLiteral("关闭");
+    }
+    if (value == QStringLiteral("idle")) {
+        return QStringLiteral("空闲");
+    }
+    if (value == QStringLiteral("charging")) {
+        return QStringLiteral("充电中");
+    }
+    if (value == QStringLiteral("fault")) {
+        return QStringLiteral("故障");
+    }
+    if (value == QStringLiteral("offline")) {
+        return QStringLiteral("离线");
+    }
+    if (value == QStringLiteral("reserved")) {
+        return QStringLiteral("已预约");
+    }
+    if (value == QStringLiteral("pending_settlement")) {
+        return QStringLiteral("待结算");
+    }
+    if (value == QStringLiteral("completed")) {
+        return QStringLiteral("已完成");
+    }
+    if (value == QStringLiteral("cancelled")) {
+        return QStringLiteral("已取消");
+    }
+    return value;
+}
+
+QString chargerTypeText(const QString &value)
+{
+    if (value == QStringLiteral("fast")) {
+        return QStringLiteral("快充");
+    }
+    if (value == QStringLiteral("slow")) {
+        return QStringLiteral("慢充");
+    }
+    return value;
+}
+
+QString dashboardStatusName(const QString &value)
+{
+    return statusText(value);
+}
+
+QString appStyleSheet()
+{
+    return QStringLiteral(R"QSS(
+QWidget#AdminWindow {
+    background: #eef5ff;
+    color: #102033;
+    font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial;
+    font-size: 10pt;
+}
+QLabel#headerLabel {
+    color: #0f172a;
+    font-size: 20px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-left: 7px solid #1683ff;
+    background: #ffffff;
+    border-radius: 8px;
+}
+QGroupBox {
+    background: #ffffff;
+    border: 1px solid #d6e4f5;
+    border-radius: 8px;
+    margin-top: 18px;
+    padding: 12px 8px 8px 8px;
+    font-weight: 700;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 8px;
+    color: #0f4ea3;
+}
+QTabWidget::pane {
+    background: #ffffff;
+    border: 1px solid #d6e4f5;
+    border-radius: 8px;
+    top: -1px;
+}
+QTabBar::tab {
+    background: #f6faff;
+    border: 1px solid #d6e4f5;
+    border-bottom: 0;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    min-width: 78px;
+    padding: 8px 12px;
+    color: #17406d;
+}
+QTabBar::tab:selected {
+    background: #ffffff;
+    color: #0754b8;
+    font-weight: 700;
+}
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit {
+    background: #f8fbff;
+    border: 1px solid #bdd2ec;
+    border-radius: 6px;
+    padding: 5px 7px;
+    selection-background-color: #1683ff;
+}
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+    border: 1px solid #1683ff;
+    background: #ffffff;
+}
+QPushButton {
+    background: #edf5ff;
+    border: 1px solid #9bc4ff;
+    border-radius: 7px;
+    color: #0754b8;
+    padding: 7px 14px;
+    font-weight: 600;
+}
+QPushButton:hover { background: #dcecff; }
+QPushButton:pressed { background: #c7ddff; }
+QPushButton#loginButton, QPushButton#refreshDashboardButton, QPushButton#generateForecastButton {
+    background: #1683ff;
+    border-color: #1683ff;
+    color: #ffffff;
+}
+QPushButton#createStationButton, QPushButton#createChargerButton, QPushButton#activateUserButton {
+    background: #10b981;
+    border-color: #10b981;
+    color: #ffffff;
+}
+QPushButton#freezeUserButton, QPushButton#closeStationButton, QPushButton#setChargerStatusButton {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: #ffffff;
+}
+QPushButton#stopOrderButton {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #ffffff;
+}
+QTableWidget {
+    background: #ffffff;
+    alternate-background-color: #f5f9ff;
+    border: 1px solid #d8e6f7;
+    border-radius: 6px;
+    gridline-color: #e7eef8;
+}
+QHeaderView::section {
+    background: #eef6ff;
+    color: #17406d;
+    border: 0;
+    border-right: 1px solid #d5e4f6;
+    padding: 6px;
+    font-weight: 700;
+}
+QTableWidget::item:selected {
+    background: #d9ecff;
+    color: #0f172a;
+}
+QLabel#adminLabel, QLabel#dashboardStatusLabel {
+    background: #f8fbff;
+    border: 1px solid #d6e4f5;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #0f4ea3;
+}
+)QSS");
 }
 
 QString javascriptJson(const QJsonDocument &document)
@@ -84,8 +299,6 @@ QString javascriptJson(const QJsonDocument &document)
 } // namespace
 
 class AdminWindow final : public QWidget {
-    Q_OBJECT
-
 public:
     explicit AdminWindow(QWidget *parent = nullptr)
         : QWidget(parent)
@@ -105,7 +318,8 @@ private:
         ui = new Ui::AdminWindow;
         ui->setupUi(this);
 
-        setWindowTitle(QStringLiteral("Charging Admin Client"));
+        setWindowTitle(QStringLiteral("汽车充电运营管理端"));
+        setStyleSheet(appStyleSheet());
         resize(1240, 780);
 
         hostEdit_ = ui->hostEdit;
@@ -178,6 +392,7 @@ private:
         orderStatusTable_ = ui->orderStatusTable;
         chargerStatusOverviewTable_ = ui->chargerStatusOverviewTable;
 
+        setupProtocolCombos();
         setupTable(userTable_);
         setupTable(stationTable_);
         setupTable(chargerTable_);
@@ -193,12 +408,42 @@ private:
 #ifdef HAS_QT_WEBENGINE
         dashboardHtmlEdit_->hide();
         dashboardWebContainer_->setMinimumHeight(500);
-        dashboardStatusLabel_->setText(QStringLiteral("Embedded WebEngine dashboard ready"));
+        dashboardStatusLabel_->setText(QStringLiteral("可视化大屏已就绪（嵌入图表模式）"));
 #else
         dashboardWebContainer_->hide();
         dashboardHtmlEdit_->setMinimumHeight(500);
-        dashboardStatusLabel_->setText(QStringLiteral("HTML preview mode (Qt WebEngine unavailable)"));
+        dashboardStatusLabel_->setText(QStringLiteral("网页预览模式（当前环境未启用嵌入图表组件）"));
 #endif
+    }
+
+    void setupProtocolCombos()
+    {
+        userStatusCombo_->setItemData(0, QStringLiteral("all"));
+        userStatusCombo_->setItemData(1, QStringLiteral("active"));
+        userStatusCombo_->setItemData(2, QStringLiteral("frozen"));
+
+        stationStatusCombo_->setItemData(0, QStringLiteral("open"));
+        stationStatusCombo_->setItemData(1, QStringLiteral("closed"));
+
+        chargerTypeCombo_->setItemData(0, QStringLiteral("fast"));
+        chargerTypeCombo_->setItemData(1, QStringLiteral("slow"));
+
+        chargerStatusCombo_->setItemData(0, QStringLiteral("idle"));
+        chargerStatusCombo_->setItemData(1, QStringLiteral("charging"));
+        chargerStatusCombo_->setItemData(2, QStringLiteral("fault"));
+        chargerStatusCombo_->setItemData(3, QStringLiteral("offline"));
+
+        overviewHorizonCombo_->setItemData(0, QStringLiteral("all"));
+        overviewHorizonCombo_->setItemData(1, QStringLiteral("1"));
+        overviewHorizonCombo_->setItemData(2, QStringLiteral("6"));
+        overviewHorizonCombo_->setItemData(3, QStringLiteral("24"));
+
+        orderStatusCombo_->setItemData(0, QStringLiteral("all"));
+        orderStatusCombo_->setItemData(1, QStringLiteral("reserved"));
+        orderStatusCombo_->setItemData(2, QStringLiteral("charging"));
+        orderStatusCombo_->setItemData(3, QStringLiteral("pending_settlement"));
+        orderStatusCombo_->setItemData(4, QStringLiteral("completed"));
+        orderStatusCombo_->setItemData(5, QStringLiteral("cancelled"));
     }
 
     void setupTable(QTableWidget *table)
@@ -241,30 +486,30 @@ private:
         QTcpSocket socket;
         socket.connectToHost(hostEdit_->text().trimmed(), static_cast<quint16>(portSpin_->value()));
         if (!socket.waitForConnected(3000)) {
-            throw QStringLiteral("connect failed: %1").arg(socket.errorString());
+            throw QStringLiteral("连接服务器失败：%1").arg(socket.errorString());
         }
 
         payload.insert(QStringLiteral("request_id"), ++requestId_);
         socket.write(QJsonDocument(payload).toJson(QJsonDocument::Compact) + '\n');
         if (!socket.waitForBytesWritten(3000)) {
-            throw QStringLiteral("write failed: %1").arg(socket.errorString());
+            throw QStringLiteral("发送请求失败：%1").arg(socket.errorString());
         }
         if (!socket.waitForReadyRead(5000)) {
-            throw QStringLiteral("read timeout: %1").arg(socket.errorString());
+            throw QStringLiteral("读取响应超时：%1").arg(socket.errorString());
         }
 
         const QByteArray line = socket.readLine();
         QJsonParseError parseError;
         const QJsonDocument doc = QJsonDocument::fromJson(line, &parseError);
         if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
-            throw QStringLiteral("invalid response: %1").arg(QString::fromUtf8(line));
+            throw QStringLiteral("服务器响应格式无效：%1").arg(QString::fromUtf8(line));
         }
 
         const QJsonObject response = doc.object();
         appendLog(QStringLiteral(">> %1").arg(QString::fromUtf8(QJsonDocument(payload).toJson(QJsonDocument::Compact))));
         appendLog(QStringLiteral("<< %1").arg(QString::fromUtf8(QJsonDocument(response).toJson(QJsonDocument::Compact))));
         if (!response.value(QStringLiteral("success")).toBool()) {
-            throw response.value(QStringLiteral("error")).toString(QStringLiteral("request failed"));
+            throw response.value(QStringLiteral("error")).toString(QStringLiteral("请求失败"));
         }
         return response.value(QStringLiteral("data")).toObject();
     }
@@ -283,14 +528,14 @@ private:
             action();
         } catch (const QString &message) {
             QMessageBox::warning(this, title, message);
-            appendLog(QStringLiteral("[ERROR] %1").arg(message));
+            appendLog(QStringLiteral("[错误] %1").arg(message));
         }
     }
 
     bool ensureLogin()
     {
         if (sessionToken_.isEmpty()) {
-            QMessageBox::information(this, QStringLiteral("Login Required"), QStringLiteral("Please login first."));
+            QMessageBox::information(this, QStringLiteral("需要登录"), QStringLiteral("请先登录管理员账户。"));
             return false;
         }
         return true;
@@ -298,7 +543,7 @@ private:
 
     void login()
     {
-        runAction(QStringLiteral("Login Failed"), [this]() {
+        runAction(QStringLiteral("登录失败"), [this]() {
             QJsonObject payload;
             payload.insert(QStringLiteral("action"), QStringLiteral("admin.login"));
             payload.insert(QStringLiteral("username"), usernameEdit_->text().trimmed());
@@ -324,14 +569,15 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Users Failed"), [this]() {
+        runAction(QStringLiteral("用户查询失败"), [this]() {
             QJsonObject payload = authed(QStringLiteral("admin.user.list"));
             const QString keyword = userKeywordEdit_->text().trimmed();
             if (!keyword.isEmpty()) {
                 payload.insert(QStringLiteral("keyword"), keyword);
             }
-            if (userStatusCombo_->currentText() != QStringLiteral("all")) {
-                payload.insert(QStringLiteral("status"), userStatusCombo_->currentText());
+            const QString userStatus = comboValue(userStatusCombo_);
+            if (userStatus != QStringLiteral("all")) {
+                payload.insert(QStringLiteral("status"), userStatus);
             }
             const QJsonArray users = request(payload).value(QStringLiteral("users")).toArray();
             userTable_->setRowCount(users.size());
@@ -342,7 +588,8 @@ private:
                 setItem(userTable_, row, 1, user.value(QStringLiteral("phone")).toString(), id);
                 setItem(userTable_, row, 2, user.value(QStringLiteral("nickname")).toString(), id);
                 setItem(userTable_, row, 3, moneyText(user.value(QStringLiteral("balance_cents")).toInt()), id);
-                setItem(userTable_, row, 4, user.value(QStringLiteral("status")).toString(), id);
+                const QString status = user.value(QStringLiteral("status")).toString();
+                setItem(userTable_, row, 4, statusText(status), id, status);
             }
             userTable_->resizeColumnsToContents();
         });
@@ -355,10 +602,10 @@ private:
         }
         const int userId = currentId(userTable_);
         if (userId <= 0) {
-            QMessageBox::information(this, QStringLiteral("User"), QStringLiteral("Select a user first."));
+            QMessageBox::information(this, QStringLiteral("用户管理"), QStringLiteral("请先选择一个用户。"));
             return;
         }
-        runAction(QStringLiteral("User Status Failed"), [this, userId, status]() {
+        runAction(QStringLiteral("用户状态更新失败"), [this, userId, status]() {
             QJsonObject payload = authed(QStringLiteral("admin.user.set_status"));
             payload.insert(QStringLiteral("user_id"), userId);
             payload.insert(QStringLiteral("status"), status);
@@ -372,7 +619,7 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Stations Failed"), [this]() {
+        runAction(QStringLiteral("充电站查询失败"), [this]() {
             QJsonObject payload;
             payload.insert(QStringLiteral("action"), QStringLiteral("station.list"));
             payload.insert(QStringLiteral("include_closed"), true);
@@ -384,7 +631,8 @@ private:
                 setItem(stationTable_, row, 0, QString::number(id), id);
                 setItem(stationTable_, row, 1, station.value(QStringLiteral("name")).toString(), id);
                 setItem(stationTable_, row, 2, station.value(QStringLiteral("address")).toString(), id);
-                setItem(stationTable_, row, 3, station.value(QStringLiteral("status")).toString(), id);
+                const QString status = station.value(QStringLiteral("status")).toString();
+                setItem(stationTable_, row, 3, statusText(status), id, status);
             }
             stationTable_->resizeColumnsToContents();
         });
@@ -398,7 +646,7 @@ private:
         }
         stationNameEdit_->setText(currentText(stationTable_, 1));
         stationAddressEdit_->setText(currentText(stationTable_, 2));
-        stationStatusCombo_->setCurrentText(currentText(stationTable_, 3));
+        setComboByValue(stationStatusCombo_, currentValue(stationTable_, 3));
         chargerStationIdSpin_->setValue(stationId);
     }
 
@@ -409,7 +657,7 @@ private:
         payload.insert(QStringLiteral("address"), stationAddressEdit_->text().trimmed());
         payload.insert(QStringLiteral("latitude"), stationLatSpin_->value());
         payload.insert(QStringLiteral("longitude"), stationLngSpin_->value());
-        payload.insert(QStringLiteral("status"), stationStatusCombo_->currentText());
+        payload.insert(QStringLiteral("status"), comboValue(stationStatusCombo_));
         return payload;
     }
 
@@ -418,7 +666,7 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Create Station Failed"), [this]() {
+        runAction(QStringLiteral("新增充电站失败"), [this]() {
             request(stationPayload(QStringLiteral("admin.station.create")));
             refreshStations();
         });
@@ -431,10 +679,10 @@ private:
         }
         const int stationId = currentId(stationTable_);
         if (stationId <= 0) {
-            QMessageBox::information(this, QStringLiteral("Station"), QStringLiteral("Select a station first."));
+            QMessageBox::information(this, QStringLiteral("充电站管理"), QStringLiteral("请先选择一个充电站。"));
             return;
         }
-        runAction(QStringLiteral("Update Station Failed"), [this, stationId]() {
+        runAction(QStringLiteral("更新充电站失败"), [this, stationId]() {
             QJsonObject payload = stationPayload(QStringLiteral("admin.station.update"));
             payload.insert(QStringLiteral("station_id"), stationId);
             request(payload);
@@ -449,10 +697,10 @@ private:
         }
         const int stationId = currentId(stationTable_);
         if (stationId <= 0) {
-            QMessageBox::information(this, QStringLiteral("Station"), QStringLiteral("Select a station first."));
+            QMessageBox::information(this, QStringLiteral("充电站管理"), QStringLiteral("请先选择一个充电站。"));
             return;
         }
-        runAction(QStringLiteral("Station Status Failed"), [this, stationId, status]() {
+        runAction(QStringLiteral("充电站状态更新失败"), [this, stationId, status]() {
             QJsonObject payload = authed(QStringLiteral("admin.station.set_status"));
             payload.insert(QStringLiteral("station_id"), stationId);
             payload.insert(QStringLiteral("status"), status);
@@ -466,7 +714,7 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Chargers Failed"), [this]() {
+        runAction(QStringLiteral("充电桩查询失败"), [this]() {
             QJsonObject payload = authed(QStringLiteral("admin.charger.list"));
             if (chargerStationIdSpin_->value() > 0) {
                 payload.insert(QStringLiteral("station_id"), chargerStationIdSpin_->value());
@@ -479,9 +727,11 @@ private:
                 setItem(chargerTable_, row, 0, QString::number(id), id);
                 setItem(chargerTable_, row, 1, QString::number(charger.value(QStringLiteral("station_id")).toInt()), id);
                 setItem(chargerTable_, row, 2, charger.value(QStringLiteral("code")).toString(), id);
-                setItem(chargerTable_, row, 3, charger.value(QStringLiteral("type")).toString(), id);
+                const QString type = charger.value(QStringLiteral("type")).toString();
+                setItem(chargerTable_, row, 3, chargerTypeText(type), id, type);
                 setItem(chargerTable_, row, 4, QString::number(charger.value(QStringLiteral("power_kw")).toDouble(), 'f', 2), id);
-                setItem(chargerTable_, row, 5, charger.value(QStringLiteral("status")).toString(), id);
+                const QString status = charger.value(QStringLiteral("status")).toString();
+                setItem(chargerTable_, row, 5, statusText(status), id, status);
                 setItem(chargerTable_, row, 6, QString::number(charger.value(QStringLiteral("total_orders")).toInt()), id);
             }
             chargerTable_->resizeColumnsToContents();
@@ -496,9 +746,9 @@ private:
         }
         chargerStationIdSpin_->setValue(currentText(chargerTable_, 1).toInt());
         chargerCodeEdit_->setText(currentText(chargerTable_, 2));
-        chargerTypeCombo_->setCurrentText(currentText(chargerTable_, 3));
+        setComboByValue(chargerTypeCombo_, currentValue(chargerTable_, 3));
         chargerPowerSpin_->setValue(currentText(chargerTable_, 4).toDouble());
-        chargerStatusCombo_->setCurrentText(currentText(chargerTable_, 5));
+        setComboByValue(chargerStatusCombo_, currentValue(chargerTable_, 5));
         refreshTelemetry(chargerId);
     }
 
@@ -507,9 +757,9 @@ private:
         QJsonObject payload = authed(action);
         payload.insert(QStringLiteral("station_id"), chargerStationIdSpin_->value());
         payload.insert(QStringLiteral("code"), chargerCodeEdit_->text().trimmed());
-        payload.insert(QStringLiteral("type"), chargerTypeCombo_->currentText());
+        payload.insert(QStringLiteral("type"), comboValue(chargerTypeCombo_));
         payload.insert(QStringLiteral("power_kw"), chargerPowerSpin_->value());
-        payload.insert(QStringLiteral("status"), chargerStatusCombo_->currentText());
+        payload.insert(QStringLiteral("status"), comboValue(chargerStatusCombo_));
         return payload;
     }
 
@@ -518,7 +768,7 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Create Charger Failed"), [this]() {
+        runAction(QStringLiteral("新增充电桩失败"), [this]() {
             request(chargerPayload(QStringLiteral("admin.charger.create")));
             refreshChargers();
         });
@@ -530,7 +780,7 @@ private:
         if (!ensureLogin() || chargerId <= 0) {
             return;
         }
-        runAction(QStringLiteral("Update Charger Failed"), [this, chargerId]() {
+        runAction(QStringLiteral("更新充电桩失败"), [this, chargerId]() {
             QJsonObject payload = chargerPayload(QStringLiteral("admin.charger.update"));
             payload.insert(QStringLiteral("charger_id"), chargerId);
             request(payload);
@@ -544,10 +794,10 @@ private:
         if (!ensureLogin() || chargerId <= 0) {
             return;
         }
-        runAction(QStringLiteral("Charger Status Failed"), [this, chargerId]() {
+        runAction(QStringLiteral("充电桩状态更新失败"), [this, chargerId]() {
             QJsonObject payload = authed(QStringLiteral("admin.charger.set_status"));
             payload.insert(QStringLiteral("charger_id"), chargerId);
-            payload.insert(QStringLiteral("status"), chargerStatusCombo_->currentText());
+            payload.insert(QStringLiteral("status"), comboValue(chargerStatusCombo_));
             request(payload);
             refreshChargers();
         });
@@ -555,7 +805,7 @@ private:
 
     void refreshTelemetry(int chargerId)
     {
-        runAction(QStringLiteral("Telemetry Failed"), [this, chargerId]() {
+        runAction(QStringLiteral("遥测数据查询失败"), [this, chargerId]() {
             QJsonObject payload;
             payload.insert(QStringLiteral("action"), QStringLiteral("telemetry.list"));
             payload.insert(QStringLiteral("charger_id"), chargerId);
@@ -566,7 +816,8 @@ private:
                 const QJsonObject record = rows.at(row).toObject();
                 const int id = record.value(QStringLiteral("id")).toInt();
                 setItem(telemetryTable_, row, 0, QString::number(id), id);
-                setItem(telemetryTable_, row, 1, record.value(QStringLiteral("status")).toString(), id);
+                const QString status = record.value(QStringLiteral("status")).toString();
+                setItem(telemetryTable_, row, 1, statusText(status), id, status);
                 setItem(telemetryTable_, row, 2, QString::number(record.value(QStringLiteral("power_kw")).toDouble(), 'f', 2), id);
                 setItem(telemetryTable_, row, 3, QString::number(record.value(QStringLiteral("energy_kwh")).toDouble(), 'f', 2), id);
                 setItem(telemetryTable_, row, 4, record.value(QStringLiteral("recorded_at")).toString(), id);
@@ -580,7 +831,7 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Overview Failed"), [this]() {
+        runAction(QStringLiteral("统计概览刷新失败"), [this]() {
             QJsonObject payload = authed(QStringLiteral("statistics.overview"));
             if (overviewStationIdSpin_->value() > 0) {
                 payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
@@ -618,23 +869,26 @@ private:
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;">
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <style>
-    body { margin: 0; background: #0f172a; color: #e2e8f0; font-family: Arial, sans-serif; }
+    body { margin: 0; background: #eef5ff; color: #102033; font-family: "Microsoft YaHei", Arial, sans-serif; }
     .wrap { padding: 16px; display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .card { background: #111827; border: 1px solid #334155; border-radius: 8px; padding: 12px; }
-    .title { font-size: 14px; color: #94a3b8; }
-    .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
-    .panel { background: #0b1120; border: 1px solid #334155; border-radius: 8px; padding: 12px; min-height: 320px; }
+    .card { background: #fff; border: 1px solid #d6e4f5; border-radius: 8px; padding: 14px; box-shadow: 0 4px 14px rgba(28, 85, 145, .10); }
+    .title { font-size: 14px; color: #5d7290; }
+    .value { font-size: 28px; font-weight: 700; margin-top: 6px; color: #1683ff; }
+    .card:nth-child(2) .value { color: #10b981; }
+    .card:nth-child(3) .value { color: #f59e0b; }
+    .card:nth-child(4) .value { color: #7c3aed; }
+    .panel { background: #fff; border: 1px solid #d6e4f5; border-radius: 8px; padding: 12px; min-height: 320px; box-shadow: 0 4px 14px rgba(28, 85, 145, .08); }
     #chart, #loadChart { width: 100%; height: 320px; }
-    .chart-fallback { box-sizing: border-box; display: flex; align-items: center; justify-content: center; height: 320px; padding: 24px; color: #fbbf24; text-align: center; }
-    pre { white-space: pre-wrap; word-break: break-word; color: #cbd5e1; font-size: 12px; }
+    .chart-fallback { box-sizing: border-box; display: flex; align-items: center; justify-content: center; height: 320px; padding: 24px; color: #f59e0b; text-align: center; }
+    pre { white-space: pre-wrap; word-break: break-word; color: #334155; font-size: 12px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="card"><div class="title">Orders</div><div class="value">%1</div></div>
-    <div class="card"><div class="title">Completed Energy kWh</div><div class="value">%2</div></div>
-    <div class="card"><div class="title">Revenue Yuan</div><div class="value">%3</div></div>
-    <div class="card"><div class="title">Current Load kW</div><div class="value">%4</div></div>
+    <div class="card"><div class="title">订单总数</div><div class="value">%1</div></div>
+    <div class="card"><div class="title">完成电量(kWh)</div><div class="value">%2</div></div>
+    <div class="card"><div class="title">营业收入(元)</div><div class="value">%3</div></div>
+    <div class="card"><div class="title">当前负载(kW)</div><div class="value">%4</div></div>
     <div class="panel" style="grid-column: span 2;">
       <div id="chart"></div>
     </div>
@@ -642,7 +896,7 @@ private:
       <div id="loadChart"></div>
     </div>
     <div class="panel" style="grid-column: span 4;">
-      <div class="title">Dashboard Data JSON</div>
+      <div class="title">大屏原始数据 JSON</div>
       <pre id="dashboardJson"></pre>
     </div>
   </div>
@@ -650,6 +904,19 @@ private:
     const overview = %5;
     const forecasts = %6;
     const actualLoads = %7;
+    const statusNames = {
+      reserved: '已预约',
+      charging: '充电中',
+      pending_settlement: '待结算',
+      completed: '已完成',
+      cancelled: '已取消',
+      idle: '空闲',
+      fault: '故障',
+      offline: '离线',
+      active: '正常',
+      frozen: '冻结'
+    };
+    const statusText = value => statusNames[value] || value;
     document.getElementById('dashboardJson').textContent = JSON.stringify(
       { overview, actual_load_history: actualLoads, forecasts }, null, 2);
     const orderStatuses = overview.order_statuses || [];
@@ -659,17 +926,17 @@ private:
       element.textContent = message;
     };
     if (!window.echarts) {
-      chartMessage('chart', 'ECharts could not be loaded. Connect to the network, then refresh this dashboard.');
-      chartMessage('loadChart', 'Actual telemetry and forecast data are still available in the exported HTML below.');
+      chartMessage('chart', 'ECharts 未能加载。连接网络后刷新大屏即可显示图表。');
+      chartMessage('loadChart', '实际负载和预测数据仍保留在下方导出的 HTML 数据中。');
     } else {
       const orderChart = echarts.init(document.getElementById('chart'));
       orderChart.setOption({
         backgroundColor: 'transparent',
-        title: { text: 'Order Status', textStyle: { color: '#e2e8f0' } },
+        title: { text: '订单状态分布', textStyle: { color: '#102033' } },
         tooltip: {},
-        xAxis: { type: 'category', data: orderStatuses.map(x => x.status), axisLabel: { color: '#cbd5e1' } },
-        yAxis: { type: 'value', axisLabel: { color: '#cbd5e1' } },
-        series: [{ type: 'bar', data: orderStatuses.map(x => x.count), itemStyle: { color: '#38bdf8' } }]
+        xAxis: { type: 'category', data: orderStatuses.map(x => statusText(x.status)), axisLabel: { color: '#64748b' } },
+        yAxis: { type: 'value', axisLabel: { color: '#64748b' } },
+        series: [{ type: 'bar', data: orderStatuses.map(x => x.count), itemStyle: { color: '#1683ff' } }]
       });
       const forecastTime = point => {
         const generatedAt = new Date(point.generated_at).getTime();
@@ -687,31 +954,31 @@ private:
       });
       const timeline = [...new Set([...actualByTime.keys(), ...forecastByTime.keys()])].sort();
       if (timeline.length === 0) {
-        chartMessage('loadChart', 'No actual telemetry or forecast records match the current filters.');
+        chartMessage('loadChart', '当前筛选条件下暂无实际遥测或预测记录。');
       } else {
         const loadChart = echarts.init(document.getElementById('loadChart'));
         loadChart.setOption({
           backgroundColor: 'transparent',
-          title: { text: 'Actual and Forecast Load', textStyle: { color: '#e2e8f0' } },
+          title: { text: '实际负载与预测负载', textStyle: { color: '#102033' } },
           tooltip: { trigger: 'axis' },
-          legend: { data: ['Actual kW', 'Forecast kW'], textStyle: { color: '#cbd5e1' } },
+          legend: { data: ['实际负载(kW)', '预测负载(kW)'], textStyle: { color: '#64748b' } },
           xAxis: {
             type: 'category',
             data: timeline,
-            axisLabel: { color: '#cbd5e1', rotate: 25, formatter: value => value.replace('T', ' ').slice(5, 16) }
+            axisLabel: { color: '#64748b', rotate: 25, formatter: value => value.replace('T', ' ').slice(5, 16) }
           },
-          yAxis: { type: 'value', axisLabel: { color: '#cbd5e1' } },
+          yAxis: { type: 'value', axisLabel: { color: '#64748b' } },
           series: [
             {
-              name: 'Actual kW',
+              name: '实际负载(kW)',
               type: 'line',
               smooth: true,
               connectNulls: false,
               data: timeline.map(time => actualByTime.has(time) ? actualByTime.get(time) : null),
-              itemStyle: { color: '#38bdf8' }
+              itemStyle: { color: '#10b981' }
             },
             {
-              name: 'Forecast kW',
+              name: '预测负载(kW)',
               type: 'line',
               smooth: true,
               connectNulls: false,
@@ -752,7 +1019,7 @@ private:
         if (overviewStationIdSpin_->value() > 0) {
             payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
         }
-        const QString horizonText = overviewHorizonCombo_->currentText();
+        const QString horizonText = comboValue(overviewHorizonCombo_);
         if (horizonText != QStringLiteral("all")) {
             payload.insert(QStringLiteral("horizon_hours"), horizonText.toInt());
         }
@@ -775,7 +1042,7 @@ private:
     {
         const QString html = dashboardHtml(overview, forecasts, actualLoads);
         dashboardHtmlEdit_->setPlainText(html);
-        dashboardStatusLabel_->setText(QStringLiteral("Dashboard updated"));
+        dashboardStatusLabel_->setText(QStringLiteral("大屏数据已刷新"));
 #ifdef HAS_QT_WEBENGINE
         if (!dashboardWebView_) {
             dashboardWebView_ = new QWebEngineView(dashboardWebContainer_);
@@ -794,7 +1061,7 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Dashboard Failed"), [this]() {
+        runAction(QStringLiteral("可视化大屏刷新失败"), [this]() {
             const QJsonObject overview = dashboardOverview();
             const QJsonArray forecasts = dashboardForecasts();
             const QJsonArray actualLoads = dashboardLoadHistory();
@@ -805,22 +1072,22 @@ private:
     void exportDashboardHtml()
     {
         if (dashboardHtmlEdit_->toPlainText().isEmpty()) {
-            QMessageBox::information(this, QStringLiteral("Dashboard"), QStringLiteral("Refresh dashboard first."));
+            QMessageBox::information(this, QStringLiteral("可视化大屏"), QStringLiteral("请先刷新大屏数据。"));
             return;
         }
         const QString filePath = QFileDialog::getSaveFileName(
-            this, QStringLiteral("Export Dashboard HTML"), QString(), QStringLiteral("HTML Files (*.html)"));
+            this, QStringLiteral("导出大屏网页文件"), QString(), QStringLiteral("网页文件 (*.html)"));
         if (filePath.isEmpty()) {
             return;
         }
         QFile file(filePath);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-            QMessageBox::warning(this, QStringLiteral("Export Failed"), file.errorString());
+            QMessageBox::warning(this, QStringLiteral("导出失败"), file.errorString());
             return;
         }
         QTextStream stream(&file);
         stream << dashboardHtmlEdit_->toPlainText();
-        dashboardStatusLabel_->setText(QStringLiteral("Dashboard exported"));
+        dashboardStatusLabel_->setText(QStringLiteral("大屏网页文件已导出"));
     }
 
     void generateForecast()
@@ -828,12 +1095,12 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Generate Forecast Failed"), [this]() {
+        runAction(QStringLiteral("生成负载预测失败"), [this]() {
             QJsonObject payload = authed(QStringLiteral("forecast.generate"));
             if (overviewStationIdSpin_->value() > 0) {
                 payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
             }
-            const QString horizonText = overviewHorizonCombo_->currentText();
+            const QString horizonText = comboValue(overviewHorizonCombo_);
             if (horizonText != QStringLiteral("all")) {
                 payload.insert(QStringLiteral("horizon_hours"), horizonText.toInt());
             } else {
@@ -849,12 +1116,12 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Forecasts Failed"), [this]() {
+        runAction(QStringLiteral("负载预测查询失败"), [this]() {
             QJsonObject payload = authed(QStringLiteral("forecast.list"));
             if (overviewStationIdSpin_->value() > 0) {
                 payload.insert(QStringLiteral("station_id"), overviewStationIdSpin_->value());
             }
-            const QString horizonText = overviewHorizonCombo_->currentText();
+            const QString horizonText = comboValue(overviewHorizonCombo_);
             if (horizonText != QStringLiteral("all")) {
                 payload.insert(QStringLiteral("horizon_hours"), horizonText.toInt());
             }
@@ -879,7 +1146,8 @@ private:
         table->setRowCount(rows.size());
         for (int row = 0; row < rows.size(); ++row) {
             const QJsonObject item = rows.at(row).toObject();
-            setItem(table, row, 0, item.value(QStringLiteral("status")).toString());
+            const QString status = item.value(QStringLiteral("status")).toString();
+            setItem(table, row, 0, dashboardStatusName(status), 0, status);
             setItem(table, row, 1, QString::number(item.value(countKey).toInt()));
         }
         table->resizeColumnsToContents();
@@ -890,7 +1158,8 @@ private:
         table->setRowCount(rows.size());
         for (int row = 0; row < rows.size(); ++row) {
             const QJsonObject item = rows.at(row).toObject();
-            setItem(table, row, 0, item.value(QStringLiteral("status")).toString());
+            const QString status = item.value(QStringLiteral("status")).toString();
+            setItem(table, row, 0, dashboardStatusName(status), 0, status);
             setItem(table, row, 1, QString::number(item.value(QStringLiteral("count")).toInt()));
             setItem(table, row, 2, QString::number(item.value(QStringLiteral("current_power_kw")).toDouble(), 'f', 2));
         }
@@ -902,13 +1171,14 @@ private:
         if (!ensureLogin()) {
             return;
         }
-        runAction(QStringLiteral("Orders Failed"), [this]() {
+        runAction(QStringLiteral("订单查询失败"), [this]() {
             QJsonObject payload = authed(QStringLiteral("order.list"));
             if (orderUserIdSpin_->value() > 0) {
                 payload.insert(QStringLiteral("user_id"), orderUserIdSpin_->value());
             }
-            if (orderStatusCombo_->currentText() != QStringLiteral("all")) {
-                payload.insert(QStringLiteral("status"), orderStatusCombo_->currentText());
+            const QString orderStatus = comboValue(orderStatusCombo_);
+            if (orderStatus != QStringLiteral("all")) {
+                payload.insert(QStringLiteral("status"), orderStatus);
             }
             payload.insert(QStringLiteral("limit"), 200);
             const QJsonArray orders = request(payload).value(QStringLiteral("orders")).toArray();
@@ -921,7 +1191,8 @@ private:
                 setItem(orderTable_, row, 2, order.value(QStringLiteral("user_phone")).toString(), id);
                 setItem(orderTable_, row, 3, order.value(QStringLiteral("station_name")).toString(), id);
                 setItem(orderTable_, row, 4, order.value(QStringLiteral("charger_code")).toString(), id);
-                setItem(orderTable_, row, 5, order.value(QStringLiteral("status")).toString(), id);
+                const QString status = order.value(QStringLiteral("status")).toString();
+                setItem(orderTable_, row, 5, statusText(status), id, status);
                 setItem(orderTable_, row, 6, QString::number(order.value(QStringLiteral("energy_kwh")).toDouble(), 'f', 2), id);
                 setItem(orderTable_, row, 7, moneyText(order.value(QStringLiteral("amount_cents")).toInt()), id);
             }
@@ -935,7 +1206,7 @@ private:
         if (!ensureLogin() || orderId <= 0) {
             return;
         }
-        runAction(QStringLiteral("Stop Order Failed"), [this, orderId]() {
+        runAction(QStringLiteral("停止订单失败"), [this, orderId]() {
             QJsonObject payload = authed(QStringLiteral("order.stop"));
             payload.insert(QStringLiteral("order_id"), orderId);
             payload.insert(QStringLiteral("energy_kwh"), orderEnergySpin_->value());
@@ -951,7 +1222,7 @@ private:
         if (!ensureLogin() || orderId <= 0) {
             return;
         }
-        runAction(QStringLiteral("Settle Order Failed"), [this, orderId]() {
+        runAction(QStringLiteral("订单结算失败"), [this, orderId]() {
             QJsonObject payload = authed(QStringLiteral("order.settle"));
             payload.insert(QStringLiteral("order_id"), orderId);
             request(payload);
@@ -1053,5 +1324,3 @@ int main(int argc, char *argv[])
     window.show();
     return app.exec();
 }
-
-#include "main.moc"
